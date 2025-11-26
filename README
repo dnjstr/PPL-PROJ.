@@ -1,0 +1,571 @@
+# Event Scheduling and Conflict Resolution System
+
+**CS315 Programming Languages - Final Project**
+
+A comprehensive event management solution implemented in four different programming paradigms to demonstrate the characteristics and strengths of each approach.
+
+---
+
+## 📋 Table of Contents
+
+- [Overview](#overview)
+- [Problem Statement](#problem-statement)
+- [Project Structure](#project-structure)
+- [Implementations](#implementations)
+  - [1. Imperative Paradigm (C)](#1-imperative-paradigm-c)
+  - [2. Object-Oriented Paradigm (Java)](#2-object-oriented-paradigm-java)
+  - [3. Logic Paradigm (Prolog)](#3-logic-paradigm-prolog)
+  - [4. Functional Paradigm (Common Lisp)](#4-functional-paradigm-common-lisp)
+- [Features](#features)
+- [Sample Data](#sample-data)
+- [Installation & Usage](#installation--usage)
+- [Output Examples](#output-examples)
+- [Paradigm Comparison](#paradigm-comparison)
+- [Authors](#authors)
+- [License](#license)
+
+---
+
+## 🎯 Overview
+
+The Event Scheduling and Conflict Resolution System is designed to automate the detection and resolution of scheduling conflicts across multiple resources such as meeting rooms, personnel, and equipment. This project demonstrates how the same problem can be solved using different programming paradigms, each with its unique approach and characteristics.
+
+### Key Objectives:
+- Detect scheduling conflicts (location and resource double-bookings)
+- Provide detailed conflict reports with resolution guidance
+- Display events in chronological order
+- Filter events by specific resources
+- Demonstrate programming paradigm characteristics
+
+---
+
+## 📝 Problem Statement
+
+Organizations, educational institutions, and event coordinators frequently encounter difficulties managing concurrent events that require shared resources. Manual scheduling often results in:
+
+- **Double-bookings** of rooms and personnel
+- **Time conflicts** between overlapping events
+- **Resource allocation errors**
+- **Operational disruptions** and inefficiencies
+
+This system automates conflict detection and provides real-time validation, advanced filtering, and chronological visualization to help users efficiently manage complex schedules.
+
+---
+
+## 📁 Project Structure
+
+```
+event-scheduling-system/
+│
+├── imperative/
+│   └── event_scheduling.c           # C implementation
+│
+├── object-oriented/
+│   └── EventSchedulingSystem.java   # Java implementation
+│
+├── logic/
+│   └── event_scheduling.pl          # Prolog implementation
+│
+├── functional/
+│   └── event-scheduling.lisp        # Common Lisp implementation
+│
+├── documentation/
+│   ├── README.md                    # This file
+│   ├── screenshots/                 # Sample run screenshots
+│   └── report.pdf                   # Project documentation
+│
+└── test-data/
+    └── sample_events.txt            # Sample event data
+```
+
+---
+
+## 💻 Implementations
+
+### 1. Imperative Paradigm (C)
+
+**Characteristics Demonstrated:**
+- Sequential execution flow
+- Mutable state with global variables
+- Procedural approach with functions modifying state
+- Loop constructs (for, while)
+- Direct memory manipulation
+
+**File:** `event_scheduling.c`
+
+**Compilation & Execution:**
+```bash
+# Compile
+gcc event_scheduling.c -o scheduler
+
+# Run
+./scheduler
+```
+
+**Key Features:**
+- Global event array for state management
+- Bubble sort for chronological ordering
+- Nested loops for conflict detection
+- Procedural functions with side effects
+
+---
+
+### 2. Object-Oriented Paradigm (Java)
+
+**Characteristics Demonstrated:**
+- Encapsulation (private fields, public methods)
+- Classes and objects
+- Composition (ScheduleManager contains Events)
+- Polymorphism (method overriding)
+- Message passing between objects
+
+**File:** `EventSchedulingSystem.java`
+
+**Compilation & Execution:**
+```bash
+# Compile
+javac EventSchedulingSystem.java
+
+# Run
+java EventSchedulingSystem
+```
+
+**Classes:**
+- `Time` - Encapsulates time representation
+- `Event` - Represents an event with all details
+- `Conflict` - Represents a conflict between events
+- `ScheduleManager` - Main manager class (composition)
+- `EventSchedulingSystem` - Driver class with main method
+
+---
+
+### 3. Logic Paradigm (Prolog)
+
+**Characteristics Demonstrated:**
+- Declarative knowledge representation
+- Facts and rules
+- Pattern matching and unification
+- Backtracking search
+- Query-based problem solving
+- Logical inference
+
+**File:** `event_scheduling.pl`
+
+**Execution:**
+```prolog
+% Load the file
+?- [event_scheduling].
+
+% Run the complete system
+?- run_scheduling_system.
+
+% Example queries
+?- has_conflict('Math Seminar').
+?- events_by_resource('Prof. A', Title).
+?- print_filtered_view('Prof. A').
+```
+
+**Key Features:**
+- Facts database for event storage
+- Rules for logical inference
+- Pattern matching for conflict detection
+- Query-based reporting
+
+---
+
+### 4. Functional Paradigm (Common Lisp)
+
+**Characteristics Demonstrated:**
+- Pure functions without side effects
+- Immutable data structures
+- Higher-order functions (map, filter, reduce)
+- Function composition
+- Declarative style
+- List processing
+
+**File:** `event-scheduling.lisp`
+
+**Execution:**
+```lisp
+; Load the file
+(load "event-scheduling.lisp")
+
+; Run the complete system
+(run-scheduling-system)
+
+; Test individual functions
+(test-individual-functions)
+
+; Create and manipulate events
+(let ((events (create-sample-events)))
+  (filter-events-by-resource events "Prof. A"))
+```
+
+**Key Features:**
+- Immutable data transformations
+- Pure functions with no side effects
+- Higher-order functions (mapcar, remove-if-not, count-if)
+- Functional composition using let*
+
+---
+
+## ✨ Features
+
+### 1. Conflict Detection
+- **Location Conflicts:** Detects when two events overlap in time and use the same room
+- **Resource Conflicts:** Detects when the same person/resource is assigned to overlapping events
+- **Detailed Analysis:** Identifies exact overlap intervals
+
+### 2. Conflict Resolution Guidance
+- Suggests relocating events to available rooms
+- Recommends adjusting event times
+- Proposes assigning alternate resources
+- Advises on rescheduling options
+
+### 3. Chronological Schedule Display
+- Lists all events sorted by start time
+- Shows conflict status for each event
+- Displays summary statistics
+- Color-coded priority indicators (in terminal versions)
+
+### 4. Filtered Views
+- Filter events by specific resource (person/equipment)
+- Shows conflict rate for individual resources
+- Warnings for over-scheduled resources
+- Recommendations for buffer time
+
+---
+
+## 📊 Sample Data
+
+The system includes four sample events scheduled for November 10, 2025:
+
+### Event 1: Math Seminar
+- **Time:** 09:00 – 10:30
+- **Location:** Room 201
+- **Resource:** Prof. A
+- **Description:** Linear Algebra Review
+
+### Event 2: CS Department Meeting
+- **Time:** 10:00 – 11:00
+- **Location:** Room 201
+- **Resources:** Prof. B, Prof. C
+- **Description:** Curriculum planning discussions
+
+### Event 3: Project Review Session
+- **Time:** 09:45 – 10:15
+- **Location:** Room 101
+- **Resource:** Prof. A
+- **Description:** Student capstone reviews
+
+### Event 4: Lab Equipment Maintenance
+- **Time:** 11:00 – 12:00
+- **Location:** Computer Lab
+- **Resource:** Technician Joe
+- **Description:** Monthly maintenance checks
+
+### Expected Conflicts:
+1. **Location Conflict:** Math Seminar and CS Department Meeting (Room 201, 10:00-10:30)
+2. **Resource Conflict:** Math Seminar and Project Review Session (Prof. A, 09:45-10:15)
+
+---
+
+## 🚀 Installation & Usage
+
+### Prerequisites
+
+#### For C (Imperative):
+- GCC compiler (MinGW on Windows)
+- Dev-C++ (optional IDE)
+
+#### For Java (Object-Oriented):
+- JDK 8 or higher
+- JCreator, Eclipse, IntelliJ IDEA, or command line
+
+#### For Prolog (Logic):
+- SWI-Prolog (https://www.swi-prolog.org/)
+
+#### For Common Lisp (Functional):
+- Steel Bank Common Lisp (SBCL) (http://www.sbcl.org/)
+- OR CLISP, CCL, or any Common Lisp implementation
+
+### Quick Start Guide
+
+#### C Implementation:
+```bash
+cd imperative
+gcc event_scheduling.c -o scheduler
+./scheduler
+```
+
+#### Java Implementation:
+```bash
+cd object-oriented
+javac EventSchedulingSystem.java
+java EventSchedulingSystem
+```
+
+#### Prolog Implementation:
+```bash
+cd logic
+swipl
+?- [event_scheduling].
+?- run_scheduling_system.
+```
+
+#### Common Lisp Implementation:
+```bash
+cd functional
+sbcl --load event-scheduling.lisp
+* (run-scheduling-system)
+```
+
+---
+
+## 📸 Output Examples
+
+### 1. Conflict Detection Report
+```
+========================================
+CONFLICT DETECTION AND RESOLUTION REPORT
+========================================
+
+Conflict 1: Location Overlap
+Type: Location Double-Booking
+Location: Room 201
+Conflicting Events:
+  - Math Seminar (09:00 - 10:30)
+  - CS Department Meeting (10:00 - 11:00)
+Overlap Interval: 10:00 - 10:30 (30 minutes)
+Resolution Guidance:
+  - Relocate one event to an available room
+  - Adjust event times to avoid overlap
+
+Conflict 2: Resource Overlap
+Type: Resource Double-Booking (Critical)
+Resource: Prof. A
+Conflicting Events:
+  - Math Seminar (09:00 - 10:30) in Room 201
+  - Project Review Session (09:45 - 10:15) in Room 101
+Overlap Interval: 09:45 - 10:15 (30 minutes)
+Resolution Guidance:
+  - Assign an alternate resource
+  - Reschedule one of the events
+```
+
+### 2. Chronological Schedule
+```
+========================================
+CHRONOLOGICAL SCHEDULE DISPLAY
+========================================
+
+Summary: 4 total events, 2 conflicts detected, 3 events affected
+
+Event List (Temporal Order):
+
+09:00 - 10:30: Math Seminar (Room 201)
+  Resource: Prof. A
+  Status: Conflicting
+  Description: Linear Algebra Review
+
+09:45 - 10:15: Project Review Session (Room 101)
+  Resource: Prof. A
+  Status: Conflicting
+  Description: Student capstone reviews
+
+10:00 - 11:00: CS Department Meeting (Room 201)
+  Resource: Prof. B, Prof. C
+  Status: Conflicting
+  Description: Curriculum planning discussions
+
+11:00 - 12:00: Lab Equipment Maintenance (Computer Lab)
+  Resource: Technician Joe
+  Status: Successfully Scheduled
+  Description: Monthly maintenance checks
+```
+
+### 3. Filtered View
+```
+========================================
+FILTERED VIEW: Prof. A
+========================================
+
+09:00 - 10:30: Math Seminar (Room 201)
+  Status: Conflicting
+
+09:45 - 10:15: Project Review Session (Room 101)
+  Status: Conflicting
+
+Summary: 2 events found, 2 conflicts
+WARNING: 100% conflict rate - severe over-scheduling detected!
+Recommendation: Implement buffer time between events.
+```
+
+---
+
+## 🔄 Paradigm Comparison
+
+| Aspect | Imperative (C) | OOP (Java) | Logic (Prolog) | Functional (Lisp) |
+|--------|---------------|------------|----------------|-------------------|
+| **State Management** | Mutable global state | Encapsulated in objects | Facts database | Immutable data |
+| **Code Organization** | Functions | Classes/Objects | Facts/Rules | Pure functions |
+| **Control Flow** | Sequential loops | Method calls | Backtracking | Function composition |
+| **Data Modification** | In-place updates | Object methods | Query results | New data creation |
+| **Abstraction** | Procedural | Object-based | Logical | Functional |
+| **Best For** | System programming | Large applications | Knowledge systems | Data transformation |
+| **Learning Curve** | Low | Medium | High | Medium-High |
+| **Code Reusability** | Medium | High | High | High |
+| **Debugging** | Straightforward | Good tools | Challenging | Good with REPL |
+| **Maintainability** | Medium | High | Medium | High |
+
+---
+
+## 📚 Key Takeaways
+
+### Imperative (C)
+**Strengths:**
+- Direct control over memory and execution
+- Fast performance
+- Easy to understand step-by-step logic
+
+**Drawbacks:**
+- Global state can lead to bugs
+- Less code reusability
+- Manual memory management
+
+### Object-Oriented (Java)
+**Strengths:**
+- Excellent code organization
+- High reusability through inheritance
+- Natural modeling of real-world entities
+- Strong type safety
+
+**Drawbacks:**
+- Can be verbose
+- Sometimes over-engineered for simple problems
+- Memory overhead
+
+### Logic (Prolog)
+**Strengths:**
+- Declarative - describe what, not how
+- Excellent for rule-based systems
+- Natural for constraint solving
+- Pattern matching is powerful
+
+**Drawbacks:**
+- Steep learning curve
+- Limited library support
+- Can be inefficient for some problems
+- Debugging is challenging
+
+### Functional (Common Lisp)
+**Strengths:**
+- Pure functions are predictable
+- Immutability prevents many bugs
+- Excellent for data transformation
+- Great for parallel processing
+
+**Drawbacks:**
+- Different thinking paradigm
+- Can be less intuitive for beginners
+- Performance overhead from immutability
+- Syntax can be challenging (lots of parentheses)
+
+---
+
+## 🎓 Educational Value
+
+This project demonstrates:
+
+1. **Paradigm Understanding:** How different paradigms approach the same problem
+2. **Code Design:** Different architectural patterns and their trade-offs
+3. **Language Features:** Unique characteristics of each programming language
+4. **Problem Solving:** Multiple valid solutions to a single problem
+5. **Critical Thinking:** Evaluating strengths and weaknesses of each approach
+
+---
+
+## 📖 Documentation Requirements
+
+For the complete project submission, ensure you include:
+
+### Cover Page
+- Project title
+- Course: CS315 Programming Languages
+- Group members
+- Date of submission
+
+### Documentation Contents
+1. **Problem Statement** - Clear definition with I/O specifications
+2. **Solutions** - All four implementations with source code
+3. **Language Definition**
+   - Syntax (BNF for each language)
+   - Semantics (informal explanations)
+4. **Language Evaluation** - Comparative analysis
+5. **Conclusions** - Generalizations and insights
+6. **Bibliography** - All reliable sources
+7. **Appendices**
+   - Screenshots of sample runs
+   - Photo documentation of team working
+
+---
+
+## 👥 Authors
+
+**Group Members:**
+- [Student Name 1] - Imperative Implementation
+- [Student Name 2] - Object-Oriented Implementation
+- [Student Name 3] - Logic Implementation
+- [Student Name 4] - Functional Implementation
+- [Student Name 5] - Documentation & Testing
+- [Student Name 6] - Integration & Presentation
+
+**Course:** CS315 Programming Languages  
+**Institution:** [Your University]  
+**Semester:** [Semester/Year]
+
+---
+
+## 📄 License
+
+This project is submitted as academic work for CS315 Programming Languages course.  
+All rights reserved by the project group members.
+
+---
+
+## 🙏 Acknowledgments
+
+- Course instructor for guidance and requirements
+- Programming language documentation and communities
+- Open-source tools and compilers used in development
+
+---
+
+## 📞 Contact & Support
+
+For questions or issues:
+- Email: [group-email@university.edu]
+- GitHub: [repository-link] (if applicable)
+
+---
+
+## 🔗 Additional Resources
+
+### Language Documentation:
+- **C Programming:** https://en.cppreference.com/
+- **Java:** https://docs.oracle.com/en/java/
+- **Prolog (SWI):** https://www.swi-prolog.org/pldoc/
+- **Common Lisp:** http://www.lispworks.com/documentation/
+
+### Programming Paradigms:
+- Imperative Programming: https://en.wikipedia.org/wiki/Imperative_programming
+- Object-Oriented Programming: https://en.wikipedia.org/wiki/Object-oriented_programming
+- Logic Programming: https://en.wikipedia.org/wiki/Logic_programming
+- Functional Programming: https://en.wikipedia.org/wiki/Functional_programming
+
+---
+
+**Last Updated:** November 2025  
+**Version:** 1.0
+
+---
