@@ -1,6 +1,6 @@
 /*
  * EVENT SCHEDULING AND CONFLICT RESOLUTION SYSTEM
- * Object-Oriented Paradigm - Java Implementation with User Input
+ * Object-Oriented Paradigm - Java Implementation with Edit/Delete
  * 
  * File: EventSchedulingSystem.java
  * Compile: javac EventSchedulingSystem.java
@@ -46,6 +46,8 @@ class Time {
  * Core Event class demonstrating OOP principles
  */
 class Event {
+    private static int nextId = 1;
+    private int id;
     private String title;
     private Time startTime;
     private Time endTime;
@@ -57,6 +59,7 @@ class Event {
     // Constructor with parameters
     public Event(String title, Time startTime, Time endTime, 
                  String location, String resource, String description) {
+        this.id = nextId++;
         this.title = title;
         this.startTime = startTime;
         this.endTime = endTime;
@@ -67,6 +70,7 @@ class Event {
     }
     
     // Getters (Encapsulation)
+    public int getId() { return id; }
     public String getTitle() { return title; }
     public Time getStartTime() { return startTime; }
     public Time getEndTime() { return endTime; }
@@ -75,7 +79,13 @@ class Event {
     public String getDescription() { return description; }
     public boolean isConflicting() { return isConflicting; }
     
-    // Setters
+    // Setters for editing
+    public void setTitle(String title) { this.title = title; }
+    public void setStartTime(Time startTime) { this.startTime = startTime; }
+    public void setEndTime(Time endTime) { this.endTime = endTime; }
+    public void setLocation(String location) { this.location = location; }
+    public void setResource(String resource) { this.resource = resource; }
+    public void setDescription(String description) { this.description = description; }
     public void setConflicting(boolean conflicting) { 
         this.isConflicting = conflicting; 
     }
@@ -106,8 +116,8 @@ class Event {
     // Override toString
     @Override
     public String toString() {
-        return String.format("%s - %s: %s (%s)", 
-                           startTime, endTime, title, location);
+        return String.format("[ID:%d] %s - %s: %s (%s)", 
+                           id, startTime, endTime, title, location);
     }
 }
 
@@ -167,9 +177,34 @@ class ScheduleManager {
         events.add(event);
     }
     
+    // Method to get event by ID
+    public Event getEventById(int id) {
+        for (Event e : events) {
+            if (e.getId() == id) {
+                return e;
+            }
+        }
+        return null;
+    }
+    
+    // Method to delete event by ID
+    public boolean deleteEvent(int id) {
+        Event eventToRemove = getEventById(id);
+        if (eventToRemove != null) {
+            events.remove(eventToRemove);
+            return true;
+        }
+        return false;
+    }
+    
     // Method to detect all conflicts
     public void detectConflicts() {
         conflicts.clear();
+        
+        // Reset all conflict flags
+        for (Event e : events) {
+            e.setConflicting(false);
+        }
         
         for (int i = 0; i < events.size(); i++) {
             for (int j = i + 1; j < events.size(); j++) {
@@ -208,6 +243,53 @@ class ScheduleManager {
                 conflicts.get(i).printReport(i + 1);
             }
         }
+    }
+    
+    // Method to list all events
+    public void listAllEvents() {
+        System.out.println("\n========================================");
+        System.out.println("ALL EVENTS");
+        System.out.println("========================================\n");
+        
+        if (events.isEmpty()) {
+            System.out.println("No events scheduled.\n");
+            return;
+        }
+        
+        for (Event e : events) {
+            System.out.println(e);
+            System.out.println("  Resource: " + e.getResource());
+            System.out.println("  Status: " + 
+                             (e.isConflicting() ? "CONFLICTING" : "OK"));
+            System.out.println("  Description: " + e.getDescription() + "\n");
+        }
+    }
+    
+    // Method to list conflicting events
+    public void listConflictingEvents() {
+        System.out.println("\n========================================");
+        System.out.println("CONFLICTING EVENTS");
+        System.out.println("========================================\n");
+        
+        List<Event> conflictingEvents = new ArrayList<>();
+        for (Event e : events) {
+            if (e.isConflicting()) {
+                conflictingEvents.add(e);
+            }
+        }
+        
+        if (conflictingEvents.isEmpty()) {
+            System.out.println("No conflicting events.\n");
+            return;
+        }
+        
+        for (Event e : conflictingEvents) {
+            System.out.println(e);
+            System.out.println("  Resource: " + e.getResource());
+            System.out.println("  Description: " + e.getDescription() + "\n");
+        }
+        
+        System.out.println("Total conflicting events: " + conflictingEvents.size() + "\n");
     }
     
     // Method to print chronological schedule
@@ -288,6 +370,10 @@ class ScheduleManager {
     public boolean hasEvents() {
         return !events.isEmpty();
     }
+    
+    public boolean hasConflicts() {
+        return !conflicts.isEmpty();
+    }
 }
 
 /*
@@ -323,12 +409,42 @@ public class EventSchedulingSystem {
                 case 2:
                     if (manager.hasEvents()) {
                         manager.detectConflicts();
+                        manager.listAllEvents();
+                    } else {
+                        System.out.println("\nNo events to display. Please add events first.\n");
+                    }
+                    break;
+                case 3:
+                    if (manager.hasEvents()) {
+                        manager.detectConflicts();
                         manager.printConflictReport();
                     } else {
                         System.out.println("\nNo events to check. Please add events first.\n");
                     }
                     break;
-                case 3:
+                case 4:
+                    if (manager.hasEvents()) {
+                        manager.detectConflicts();
+                        manager.listConflictingEvents();
+                    } else {
+                        System.out.println("\nNo events to check. Please add events first.\n");
+                    }
+                    break;
+                case 5:
+                    if (manager.hasEvents()) {
+                        editEvent(scanner, manager);
+                    } else {
+                        System.out.println("\nNo events to edit. Please add events first.\n");
+                    }
+                    break;
+                case 6:
+                    if (manager.hasEvents()) {
+                        deleteEvent(scanner, manager);
+                    } else {
+                        System.out.println("\nNo events to delete. Please add events first.\n");
+                    }
+                    break;
+                case 7:
                     if (manager.hasEvents()) {
                         manager.detectConflicts();
                         manager.printChronologicalSchedule();
@@ -336,7 +452,7 @@ public class EventSchedulingSystem {
                         System.out.println("\nNo events to display. Please add events first.\n");
                     }
                     break;
-                case 4:
+                case 8:
                     if (manager.hasEvents()) {
                         System.out.print("\nEnter resource name to filter: ");
                         String resourceName = scanner.nextLine();
@@ -346,12 +462,12 @@ public class EventSchedulingSystem {
                         System.out.println("\nNo events to filter. Please add events first.\n");
                     }
                     break;
-                case 5:
+                case 9:
                     System.out.println("\nThank you for using the Event Scheduling System!");
                     scanner.close();
                     return;
                 default:
-                    System.out.println("\nInvalid choice. Please select 1-5.\n");
+                    System.out.println("\nInvalid choice. Please select 1-9.\n");
             }
         }
     }
@@ -361,10 +477,14 @@ public class EventSchedulingSystem {
         System.out.println("MAIN MENU");
         System.out.println("========================================");
         System.out.println("1. Add New Event");
-        System.out.println("2. Detect and Display Conflicts");
-        System.out.println("3. Display Chronological Schedule");
-        System.out.println("4. Filter Events by Resource");
-        System.out.println("5. Exit");
+        System.out.println("2. View All Events");
+        System.out.println("3. Detect and Display Conflicts");
+        System.out.println("4. View Conflicting Events Only");
+        System.out.println("5. Edit Event");
+        System.out.println("6. Delete Event");
+        System.out.println("7. Display Chronological Schedule");
+        System.out.println("8. Filter Events by Resource");
+        System.out.println("9. Exit");
         System.out.println("========================================");
     }
     
@@ -419,8 +539,185 @@ public class EventSchedulingSystem {
             System.out.println("\nEvent added successfully!");
             System.out.println("Event: " + event + "\n");
             
+            // Check for conflicts immediately
+            manager.detectConflicts();
+            if (event.isConflicting()) {
+                System.out.println("WARNING: This event has conflicts with existing events!");
+                System.out.println("Use 'Detect and Display Conflicts' to see details.\n");
+            }
+            
         } catch (Exception e) {
             System.out.println("\nError adding event. Please check your input format.\n");
+        }
+    }
+    
+    private static void editEvent(Scanner scanner, ScheduleManager manager) {
+        System.out.println("\n========================================");
+        System.out.println("EDIT EVENT");
+        System.out.println("========================================");
+        
+        // Show all events first
+        manager.detectConflicts();
+        manager.listAllEvents();
+        
+        System.out.print("Enter Event ID to edit: ");
+        try {
+            int id = Integer.parseInt(scanner.nextLine());
+            Event event = manager.getEventById(id);
+            
+            if (event == null) {
+                System.out.println("\nEvent not found!\n");
+                return;
+            }
+            
+            System.out.println("\nCurrent Event Details:");
+            System.out.println(event);
+            System.out.println("Resource: " + event.getResource());
+            System.out.println("Description: " + event.getDescription());
+            
+            System.out.println("\nWhat would you like to edit?");
+            System.out.println("1. Title");
+            System.out.println("2. Time");
+            System.out.println("3. Location");
+            System.out.println("4. Resource");
+            System.out.println("5. Description");
+            System.out.println("6. Edit All");
+            System.out.println("7. Cancel");
+            System.out.print("Choice: ");
+            
+            int editChoice = Integer.parseInt(scanner.nextLine());
+            
+            switch (editChoice) {
+                case 1:
+                    System.out.print("New Title: ");
+                    event.setTitle(scanner.nextLine());
+                    break;
+                case 2:
+                    System.out.print("New Start Time (HH:MM): ");
+                    String[] startParts = scanner.nextLine().split(":");
+                    System.out.print("New End Time (HH:MM): ");
+                    String[] endParts = scanner.nextLine().split(":");
+                    
+                    int sh = Integer.parseInt(startParts[0]);
+                    int sm = Integer.parseInt(startParts[1]);
+                    int eh = Integer.parseInt(endParts[0]);
+                    int em = Integer.parseInt(endParts[1]);
+                    
+                    if (sh < 0 || sh > 23 || sm < 0 || sm > 59 ||
+                        eh < 0 || eh > 23 || em < 0 || em > 59) {
+                        System.out.println("\nInvalid time format.\n");
+                        return;
+                    }
+                    
+                    Time start = new Time(sh, sm);
+                    Time end = new Time(eh, em);
+                    
+                    if (start.toMinutes() >= end.toMinutes()) {
+                        System.out.println("\nError: Start time must be before end time.\n");
+                        return;
+                    }
+                    
+                    event.setStartTime(start);
+                    event.setEndTime(end);
+                    break;
+                case 3:
+                    System.out.print("New Location: ");
+                    event.setLocation(scanner.nextLine());
+                    break;
+                case 4:
+                    System.out.print("New Resource: ");
+                    event.setResource(scanner.nextLine());
+                    break;
+                case 5:
+                    System.out.print("New Description: ");
+                    event.setDescription(scanner.nextLine());
+                    break;
+                case 6:
+                    System.out.print("New Title: ");
+                    event.setTitle(scanner.nextLine());
+                    
+                    System.out.print("New Start Time (HH:MM): ");
+                    String[] sp = scanner.nextLine().split(":");
+                    System.out.print("New End Time (HH:MM): ");
+                    String[] ep = scanner.nextLine().split(":");
+                    
+                    event.setStartTime(new Time(Integer.parseInt(sp[0]), Integer.parseInt(sp[1])));
+                    event.setEndTime(new Time(Integer.parseInt(ep[0]), Integer.parseInt(ep[1])));
+                    
+                    System.out.print("New Location: ");
+                    event.setLocation(scanner.nextLine());
+                    
+                    System.out.print("New Resource: ");
+                    event.setResource(scanner.nextLine());
+                    
+                    System.out.print("New Description: ");
+                    event.setDescription(scanner.nextLine());
+                    break;
+                case 7:
+                    System.out.println("\nEdit cancelled.\n");
+                    return;
+                default:
+                    System.out.println("\nInvalid choice.\n");
+                    return;
+            }
+            
+            System.out.println("\nEvent updated successfully!");
+            System.out.println("Updated Event: " + event + "\n");
+            
+            // Recheck conflicts
+            manager.detectConflicts();
+            if (event.isConflicting()) {
+                System.out.println("WARNING: This event still has conflicts!");
+                System.out.println("Use 'Detect and Display Conflicts' to see details.\n");
+            } else {
+                System.out.println("This event has no conflicts.\n");
+            }
+            
+        } catch (Exception e) {
+            System.out.println("\nError editing event. Please check your input.\n");
+        }
+    }
+    
+    private static void deleteEvent(Scanner scanner, ScheduleManager manager) {
+        System.out.println("\n========================================");
+        System.out.println("DELETE EVENT");
+        System.out.println("========================================");
+        
+        // Show all events first
+        manager.detectConflicts();
+        manager.listAllEvents();
+        
+        System.out.print("Enter Event ID to delete: ");
+        try {
+            int id = Integer.parseInt(scanner.nextLine());
+            Event event = manager.getEventById(id);
+            
+            if (event == null) {
+                System.out.println("\nEvent not found!\n");
+                return;
+            }
+            
+            System.out.println("\nEvent to delete:");
+            System.out.println(event);
+            System.out.print("\nAre you sure you want to delete this event? (yes/no): ");
+            String confirm = scanner.nextLine();
+            
+            if (confirm.equalsIgnoreCase("yes") || confirm.equalsIgnoreCase("y")) {
+                if (manager.deleteEvent(id)) {
+                    System.out.println("\nEvent deleted successfully!\n");
+                    
+                    // Recheck conflicts after deletion
+                    manager.detectConflicts();
+                    System.out.println("Conflicts have been re-evaluated.\n");
+                } else {
+                    System.out.println("\nFailed to delete event.\n");
+                }
+            } else {
+                System.out.println("\nDeletion cancelled.\n");
+            }
+            
+        } catch (Exception e) {
+            System.out.println("\nError deleting event. Please check your input.\n");
         }
     }
 }
@@ -430,18 +727,13 @@ public class EventSchedulingSystem {
  * 
  * 1. Compile: javac EventSchedulingSystem.java
  * 2. Run: java EventSchedulingSystem
- * 3. Follow the menu prompts to:
- *    - Add events with title, time, location, resource, and description
- *    - Detect conflicts between events
- *    - View chronological schedule
- *    - Filter events by resource
+ * 3. Features:
+ *    - Add events with automatic conflict detection
+ *    - View all events with their status
+ *    - View only conflicting events
+ *    - Edit events (title, time, location, resource, description)
+ *    - Delete events with confirmation
+ *    - Automatic conflict re-evaluation after edits/deletes
  * 
  * Time Format: Use 24-hour format (e.g., 09:00, 14:30)
- * Example Event:
- *   Title: Math Seminar
- *   Start: 09:00
- *   End: 10:30
- *   Location: Room 201
- *   Resource: Prof. A
- *   Description: Linear Algebra Review
  */

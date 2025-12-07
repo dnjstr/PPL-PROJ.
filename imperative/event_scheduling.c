@@ -1,6 +1,6 @@
 /*
  * EVENT SCHEDULING AND CONFLICT RESOLUTION SYSTEM
- * Imperative Paradigm - C Implementation with User Input
+ * Imperative Paradigm - C Implementation with Edit/Delete
  * 
  * File: EventSchedulingSystem.c
  * Compile: gcc EventSchedulingSystem.c -o EventSchedulingSystem
@@ -21,6 +21,7 @@ typedef struct {
 } Time;
 
 typedef struct {
+    int id;
     char title[MAX_STRING];
     Time start_time;
     Time end_time;
@@ -33,6 +34,7 @@ typedef struct {
 /* Global variables - characteristic of imperative programming */
 Event events[MAX_EVENTS];
 int event_count = 0;
+int next_id = 1;
 
 /* Function prototypes */
 int time_to_minutes(Time t);
@@ -45,6 +47,11 @@ void add_event(char* title, int sh, int sm, int eh, int em,
                char* loc, char* res, char* desc);
 void display_menu();
 void add_event_from_input();
+void list_all_events();
+void list_conflicting_events();
+void edit_event();
+void delete_event();
+int find_event_index(int id);
 void clear_input_buffer();
 
 /* Convert time to minutes for easy comparison */
@@ -62,6 +69,17 @@ int check_time_overlap(Event e1, Event e2) {
     return (e1_start < e2_end && e1_end > e2_start);
 }
 
+/* Find event index by ID */
+int find_event_index(int id) {
+    int i;
+    for (i = 0; i < event_count; i++) {
+        if (events[i].id == id) {
+            return i;
+        }
+    }
+    return -1;
+}
+
 /* Add an event to the system */
 void add_event(char* title, int sh, int sm, int eh, int em, 
                char* loc, char* res, char* desc) {
@@ -70,6 +88,7 @@ void add_event(char* title, int sh, int sm, int eh, int em,
         return;
     }
     
+    events[event_count].id = next_id++;
     strcpy(events[event_count].title, title);
     events[event_count].start_time.hour = sh;
     events[event_count].start_time.minute = sm;
@@ -94,10 +113,14 @@ void display_menu() {
     printf("MAIN MENU\n");
     printf("========================================\n");
     printf("1. Add New Event\n");
-    printf("2. Detect and Display Conflicts\n");
-    printf("3. Display Chronological Schedule\n");
-    printf("4. Filter Events by Resource\n");
-    printf("5. Exit\n");
+    printf("2. View All Events\n");
+    printf("3. Detect and Display Conflicts\n");
+    printf("4. View Conflicting Events Only\n");
+    printf("5. Edit Event\n");
+    printf("6. Delete Event\n");
+    printf("7. Display Chronological Schedule\n");
+    printf("8. Filter Events by Resource\n");
+    printf("9. Exit\n");
     printf("========================================\n");
 }
 
@@ -159,8 +182,297 @@ void add_event_from_input() {
     add_event(title, sh, sm, eh, em, location, resource, description);
     
     printf("\nEvent added successfully!\n");
-    printf("Event: %02d:%02d - %02d:%02d: %s (%s)\n\n",
-           sh, sm, eh, em, title, location);
+    printf("Event [ID:%d]: %02d:%02d - %02d:%02d: %s (%s)\n\n",
+           event_count, sh, sm, eh, em, title, location);
+    
+    /* Check for conflicts immediately */
+    detect_conflicts();
+    if (events[event_count - 1].is_conflicting) {
+        printf("WARNING: This event has conflicts with existing events!\n");
+        printf("Use 'Detect and Display Conflicts' to see details.\n\n");
+    }
+}
+
+/* List all events */
+void list_all_events() {
+    int i;
+    
+    printf("\n========================================\n");
+    printf("ALL EVENTS\n");
+    printf("========================================\n\n");
+    
+    if (event_count == 0) {
+        printf("No events scheduled.\n\n");
+        return;
+    }
+    
+    for (i = 0; i < event_count; i++) {
+        printf("[ID:%d] %02d:%02d - %02d:%02d: %s (%s)\n",
+               events[i].id,
+               events[i].start_time.hour, events[i].start_time.minute,
+               events[i].end_time.hour, events[i].end_time.minute,
+               events[i].title, events[i].location);
+        printf("  Resource: %s\n", events[i].resource);
+        printf("  Status: %s\n", 
+               events[i].is_conflicting ? "CONFLICTING" : "OK");
+        printf("  Description: %s\n\n", events[i].description);
+    }
+}
+
+/* List conflicting events only */
+void list_conflicting_events() {
+    int i;
+    int conflict_count = 0;
+    
+    printf("\n========================================\n");
+    printf("CONFLICTING EVENTS\n");
+    printf("========================================\n\n");
+    
+    for (i = 0; i < event_count; i++) {
+        if (events[i].is_conflicting) {
+            conflict_count++;
+            printf("[ID:%d] %02d:%02d - %02d:%02d: %s (%s)\n",
+                   events[i].id,
+                   events[i].start_time.hour, events[i].start_time.minute,
+                   events[i].end_time.hour, events[i].end_time.minute,
+                   events[i].title, events[i].location);
+            printf("  Resource: %s\n", events[i].resource);
+            printf("  Description: %s\n\n", events[i].description);
+        }
+    }
+    
+    if (conflict_count == 0) {
+        printf("No conflicting events.\n\n");
+    } else {
+        printf("Total conflicting events: %d\n\n", conflict_count);
+    }
+}
+
+/* Edit event */
+void edit_event() {
+    int id, index, choice;
+    int sh, sm, eh, em;
+    char buffer[MAX_STRING];
+    
+    printf("\n========================================\n");
+    printf("EDIT EVENT\n");
+    printf("========================================\n");
+    
+    detect_conflicts();
+    list_all_events();
+    
+    printf("Enter Event ID to edit: ");
+    if (scanf("%d", &id) != 1) {
+        printf("\nInvalid input.\n\n");
+        clear_input_buffer();
+        return;
+    }
+    clear_input_buffer();
+    
+    index = find_event_index(id);
+    if (index == -1) {
+        printf("\nEvent not found!\n\n");
+        return;
+    }
+    
+    printf("\nCurrent Event Details:\n");
+    printf("[ID:%d] %02d:%02d - %02d:%02d: %s (%s)\n",
+           events[index].id,
+           events[index].start_time.hour, events[index].start_time.minute,
+           events[index].end_time.hour, events[index].end_time.minute,
+           events[index].title, events[index].location);
+    printf("Resource: %s\n", events[index].resource);
+    printf("Description: %s\n", events[index].description);
+    
+    printf("\nWhat would you like to edit?\n");
+    printf("1. Title\n");
+    printf("2. Time\n");
+    printf("3. Location\n");
+    printf("4. Resource\n");
+    printf("5. Description\n");
+    printf("6. Edit All\n");
+    printf("7. Cancel\n");
+    printf("Choice: ");
+    
+    if (scanf("%d", &choice) != 1) {
+        printf("\nInvalid input.\n\n");
+        clear_input_buffer();
+        return;
+    }
+    clear_input_buffer();
+    
+    switch (choice) {
+        case 1:
+            printf("New Title: ");
+            fgets(buffer, MAX_STRING, stdin);
+            buffer[strcspn(buffer, "\n")] = 0;
+            strcpy(events[index].title, buffer);
+            break;
+            
+        case 2:
+            printf("New Start Time (HH MM): ");
+            if (scanf("%d %d", &sh, &sm) != 2) {
+                printf("\nInvalid time format.\n\n");
+                clear_input_buffer();
+                return;
+            }
+            printf("New End Time (HH MM): ");
+            if (scanf("%d %d", &eh, &em) != 2) {
+                printf("\nInvalid time format.\n\n");
+                clear_input_buffer();
+                return;
+            }
+            clear_input_buffer();
+            
+            if (sh < 0 || sh > 23 || sm < 0 || sm > 59 ||
+                eh < 0 || eh > 23 || em < 0 || em > 59) {
+                printf("\nInvalid time.\n\n");
+                return;
+            }
+            
+            if (sh * 60 + sm >= eh * 60 + em) {
+                printf("\nError: Start time must be before end time.\n\n");
+                return;
+            }
+            
+            events[index].start_time.hour = sh;
+            events[index].start_time.minute = sm;
+            events[index].end_time.hour = eh;
+            events[index].end_time.minute = em;
+            break;
+            
+        case 3:
+            printf("New Location: ");
+            fgets(buffer, MAX_STRING, stdin);
+            buffer[strcspn(buffer, "\n")] = 0;
+            strcpy(events[index].location, buffer);
+            break;
+            
+        case 4:
+            printf("New Resource: ");
+            fgets(buffer, MAX_STRING, stdin);
+            buffer[strcspn(buffer, "\n")] = 0;
+            strcpy(events[index].resource, buffer);
+            break;
+            
+        case 5:
+            printf("New Description: ");
+            fgets(buffer, MAX_STRING, stdin);
+            buffer[strcspn(buffer, "\n")] = 0;
+            strcpy(events[index].description, buffer);
+            break;
+            
+        case 6:
+            printf("New Title: ");
+            fgets(buffer, MAX_STRING, stdin);
+            buffer[strcspn(buffer, "\n")] = 0;
+            strcpy(events[index].title, buffer);
+            
+            printf("New Start Time (HH MM): ");
+            scanf("%d %d", &sh, &sm);
+            printf("New End Time (HH MM): ");
+            scanf("%d %d", &eh, &em);
+            clear_input_buffer();
+            
+            events[index].start_time.hour = sh;
+            events[index].start_time.minute = sm;
+            events[index].end_time.hour = eh;
+            events[index].end_time.minute = em;
+            
+            printf("New Location: ");
+            fgets(buffer, MAX_STRING, stdin);
+            buffer[strcspn(buffer, "\n")] = 0;
+            strcpy(events[index].location, buffer);
+            
+            printf("New Resource: ");
+            fgets(buffer, MAX_STRING, stdin);
+            buffer[strcspn(buffer, "\n")] = 0;
+            strcpy(events[index].resource, buffer);
+            
+            printf("New Description: ");
+            fgets(buffer, MAX_STRING, stdin);
+            buffer[strcspn(buffer, "\n")] = 0;
+            strcpy(events[index].description, buffer);
+            break;
+            
+        case 7:
+            printf("\nEdit cancelled.\n\n");
+            return;
+            
+        default:
+            printf("\nInvalid choice.\n\n");
+            return;
+    }
+    
+    printf("\nEvent updated successfully!\n");
+    printf("Updated Event [ID:%d]: %02d:%02d - %02d:%02d: %s (%s)\n\n",
+           events[index].id,
+           events[index].start_time.hour, events[index].start_time.minute,
+           events[index].end_time.hour, events[index].end_time.minute,
+           events[index].title, events[index].location);
+    
+    /* Recheck conflicts */
+    detect_conflicts();
+    if (events[index].is_conflicting) {
+        printf("WARNING: This event still has conflicts!\n");
+        printf("Use 'Detect and Display Conflicts' to see details.\n\n");
+    } else {
+        printf("This event has no conflicts.\n\n");
+    }
+}
+
+/* Delete event */
+void delete_event() {
+    int id, index, i;
+    char confirm[10];
+    
+    printf("\n========================================\n");
+    printf("DELETE EVENT\n");
+    printf("========================================\n");
+    
+    detect_conflicts();
+    list_all_events();
+    
+    printf("Enter Event ID to delete: ");
+    if (scanf("%d", &id) != 1) {
+        printf("\nInvalid input.\n\n");
+        clear_input_buffer();
+        return;
+    }
+    clear_input_buffer();
+    
+    index = find_event_index(id);
+    if (index == -1) {
+        printf("\nEvent not found!\n\n");
+        return;
+    }
+    
+    printf("\nEvent to delete:\n");
+    printf("[ID:%d] %02d:%02d - %02d:%02d: %s (%s)\n",
+           events[index].id,
+           events[index].start_time.hour, events[index].start_time.minute,
+           events[index].end_time.hour, events[index].end_time.minute,
+           events[index].title, events[index].location);
+    
+    printf("\nAre you sure you want to delete this event? (yes/no): ");
+    fgets(confirm, 10, stdin);
+    confirm[strcspn(confirm, "\n")] = 0;
+    
+    if (strcmp(confirm, "yes") == 0 || strcmp(confirm, "y") == 0) {
+        /* Shift all events after the deleted one */
+        for (i = index; i < event_count - 1; i++) {
+            events[i] = events[i + 1];
+        }
+        event_count--;
+        
+        printf("\nEvent deleted successfully!\n\n");
+        
+        /* Recheck conflicts after deletion */
+        detect_conflicts();
+        printf("Conflicts have been re-evaluated.\n\n");
+    } else {
+        printf("\nDeletion cancelled.\n\n");
+    }
 }
 
 /* Detect all conflicts between events */
@@ -213,12 +525,12 @@ void print_conflict_report() {
                     printf("Type: Location Double-Booking\n");
                     printf("Location: %s\n", events[i].location);
                     printf("Conflicting Events:\n");
-                    printf("  - %s (%02d:%02d - %02d:%02d)\n", 
-                           events[i].title, 
+                    printf("  - [ID:%d] %s (%02d:%02d - %02d:%02d)\n", 
+                           events[i].id, events[i].title, 
                            events[i].start_time.hour, events[i].start_time.minute,
                            events[i].end_time.hour, events[i].end_time.minute);
-                    printf("  - %s (%02d:%02d - %02d:%02d)\n", 
-                           events[j].title,
+                    printf("  - [ID:%d] %s (%02d:%02d - %02d:%02d)\n", 
+                           events[j].id, events[j].title,
                            events[j].start_time.hour, events[j].start_time.minute,
                            events[j].end_time.hour, events[j].end_time.minute);
                     printf("Resolution Guidance:\n");
@@ -234,13 +546,13 @@ void print_conflict_report() {
                     printf("Type: Resource Double-Booking (Critical)\n");
                     printf("Resource: %s\n", events[i].resource);
                     printf("Conflicting Events:\n");
-                    printf("  - %s (%02d:%02d - %02d:%02d) in %s\n", 
-                           events[i].title,
+                    printf("  - [ID:%d] %s (%02d:%02d - %02d:%02d) in %s\n", 
+                           events[i].id, events[i].title,
                            events[i].start_time.hour, events[i].start_time.minute,
                            events[i].end_time.hour, events[i].end_time.minute,
                            events[i].location);
-                    printf("  - %s (%02d:%02d - %02d:%02d) in %s\n", 
-                           events[j].title,
+                    printf("  - [ID:%d] %s (%02d:%02d - %02d:%02d) in %s\n", 
+                           events[j].id, events[j].title,
                            events[j].start_time.hour, events[j].start_time.minute,
                            events[j].end_time.hour, events[j].end_time.minute,
                            events[j].location);
@@ -290,7 +602,8 @@ void print_chronological_schedule() {
     printf("Event List (Temporal Order):\n\n");
     
     for (i = 0; i < event_count; i++) {
-        printf("%02d:%02d - %02d:%02d: %s (%s)\n",
+        printf("[ID:%d] %02d:%02d - %02d:%02d: %s (%s)\n",
+               sorted[i].id,
                sorted[i].start_time.hour, sorted[i].start_time.minute,
                sorted[i].end_time.hour, sorted[i].end_time.minute,
                sorted[i].title, sorted[i].location);
@@ -314,7 +627,8 @@ void print_filtered_view(char* resource_name) {
     for (i = 0; i < event_count; i++) {
         if (strstr(events[i].resource, resource_name) != NULL) {
             found_count++;
-            printf("%02d:%02d - %02d:%02d: %s (%s)\n",
+            printf("[ID:%d] %02d:%02d - %02d:%02d: %s (%s)\n",
+                   events[i].id,
                    events[i].start_time.hour, events[i].start_time.minute,
                    events[i].end_time.hour, events[i].end_time.minute,
                    events[i].title, events[i].location);
@@ -365,6 +679,15 @@ int main() {
                 
             case 2:
                 if (event_count == 0) {
+                    printf("\nNo events to display. Please add events first.\n\n");
+                } else {
+                    detect_conflicts();
+                    list_all_events();
+                }
+                break;
+                
+            case 3:
+                if (event_count == 0) {
                     printf("\nNo events to check. Please add events first.\n\n");
                 } else {
                     detect_conflicts();
@@ -372,7 +695,32 @@ int main() {
                 }
                 break;
                 
-            case 3:
+            case 4:
+                if (event_count == 0) {
+                    printf("\nNo events to check. Please add events first.\n\n");
+                } else {
+                    detect_conflicts();
+                    list_conflicting_events();
+                }
+                break;
+                
+            case 5:
+                if (event_count == 0) {
+                    printf("\nNo events to edit. Please add events first.\n\n");
+                } else {
+                    edit_event();
+                }
+                break;
+                
+            case 6:
+                if (event_count == 0) {
+                    printf("\nNo events to delete. Please add events first.\n\n");
+                } else {
+                    delete_event();
+                }
+                break;
+                
+            case 7:
                 if (event_count == 0) {
                     printf("\nNo events to display. Please add events first.\n\n");
                 } else {
@@ -381,7 +729,7 @@ int main() {
                 }
                 break;
                 
-            case 4:
+            case 8:
                 if (event_count == 0) {
                     printf("\nNo events to filter. Please add events first.\n\n");
                 } else {
@@ -393,12 +741,12 @@ int main() {
                 }
                 break;
                 
-            case 5:
+            case 9:
                 printf("\nThank you for using the Event Scheduling System!\n");
                 return 0;
                 
             default:
-                printf("\nInvalid choice. Please select 1-5.\n\n");
+                printf("\nInvalid choice. Please select 1-9.\n\n");
         }
     }
     
@@ -410,18 +758,13 @@ int main() {
  * 
  * 1. Compile: gcc EventSchedulingSystem.c -o EventSchedulingSystem
  * 2. Run: ./EventSchedulingSystem (Linux/Mac) or EventSchedulingSystem.exe (Windows)
- * 3. Follow the menu prompts to:
- *    - Add events with title, time, location, resource, and description
- *    - Detect conflicts between events
- *    - View chronological schedule
- *    - Filter events by resource
+ * 3. Features:
+ *    - Add events with automatic conflict detection
+ *    - View all events with their status
+ *    - View only conflicting events
+ *    - Edit events (title, time, location, resource, description)
+ *    - Delete events with confirmation
+ *    - Automatic conflict re-evaluation after edits/deletes
  * 
  * Time Format: Enter hours and minutes separated by space (e.g., 9 0 for 09:00)
- * Example Event Input:
- *   Title: Math Seminar
- *   Start: 9 0
- *   End: 10 30
- *   Location: Room 201
- *   Resource: Prof. A
- *   Description: Linear Algebra Review
  */
