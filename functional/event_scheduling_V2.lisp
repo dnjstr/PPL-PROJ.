@@ -25,8 +25,35 @@
 ;;; GLOBAL STATE (for user input management)
 ;;; ========================================================================
 
-(defparameter *events* '())
-(defparameter *next-id* 1)
+(defparameter *events*
+  (list
+   (make-event :id 1 :title "Database Design Lecture"
+               :start-time (make-time-slot :hour 9 :minute 0)
+               :end-time   (make-time-slot :hour 10 :minute 30)
+               :location "Room 101" :resource "Prof. Smith"
+               :description "Introduction to database normalization")
+   (make-event :id 2 :title "Web Development Lab"
+               :start-time (make-time-slot :hour 10 :minute 0)
+               :end-time   (make-time-slot :hour 11 :minute 30)
+               :location "Lab A" :resource "Prof. Johnson"
+               :description "HTML/CSS/JavaScript fundamentals")
+   (make-event :id 3 :title "Data Structures Seminar"
+               :start-time (make-time-slot :hour 11 :minute 0)
+               :end-time   (make-time-slot :hour 12 :minute 30)
+               :location "Room 201" :resource "Prof. Williams"
+               :description "Advanced tree and graph algorithms")
+   (make-event :id 4 :title "Database Design Practical"
+               :start-time (make-time-slot :hour 10 :minute 30)
+               :end-time   (make-time-slot :hour 12 :minute 0)
+               :location "Room 101" :resource "Prof. Smith"
+               :description "Hands-on database design exercise")
+   (make-event :id 5 :title "Algorithms Workshop"
+               :start-time (make-time-slot :hour 13 :minute 0)
+               :end-time   (make-time-slot :hour 14 :minute 30)
+               :location "Lab B" :resource "Prof. Brown"
+               :description "Algorithm optimization techniques")))
+
+(defparameter *next-id* 6)
 
 ;;; ========================================================================
 ;;; PURE FUNCTIONS
@@ -637,16 +664,17 @@
   (format t "EVENT SCHEDULING AND CONFLICT RESOLUTION SYSTEM~%")
   (format t "Functional Paradigm Implementation (Common Lisp)~%")
   (format t "===============================================~%~%")
-  
+  (format t "Sample data loaded. 5 events initialized.~%~%")
+
   (loop
-     (display-menu)
-     (format t "Enter your choice: ")
-     (finish-output)
-     (let ((input (read-line-safe)))
-       (let ((choice (parse-integer input :junk-allowed t)))
-         (when choice
-           (when (process-menu-choice choice)
-             (return)))))))
+    (display-menu)
+    (format t "Enter your choice: ")
+    (finish-output)
+    (let ((input (read-line-safe)))
+      (let ((choice (parse-integer input :junk-allowed t)))
+        (when choice
+          (when (process-menu-choice choice)
+            (return)))))))
 
 ;;; ========================================================================
 ;;; AUTO-EXECUTE

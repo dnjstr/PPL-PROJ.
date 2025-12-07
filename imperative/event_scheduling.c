@@ -660,6 +660,24 @@ int main() {
     printf("Imperative Paradigm Implementation (C Language)\n");
     printf("===============================================\n\n");
     
+    add_event("Database Design Lecture", 9, 0, 10, 30, 
+              "Room 101", "Prof. Smith", "Introduction to database normalization");
+    
+    add_event("Web Development Lab", 10, 0, 11, 30, 
+              "Lab A", "Prof. Johnson", "HTML/CSS/JavaScript fundamentals");
+    
+    add_event("Data Structures Seminar", 11, 0, 12, 30, 
+              "Room 201", "Prof. Williams", "Advanced tree and graph algorithms");
+    
+    add_event("Database Design Practical", 10, 30, 12, 0, 
+              "Room 101", "Prof. Smith", "Hands-on database design exercise");
+    
+    add_event("Algorithms Workshop", 13, 0, 14, 30, 
+              "Lab B", "Prof. Brown", "Algorithm optimization techniques");
+    
+    detect_conflicts();
+    printf("Sample data loaded. 5 events initialized.\n\n");
+    
     /* Main program loop */
     while (1) {
         display_menu();

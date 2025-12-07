@@ -390,6 +390,21 @@ public class EventSchedulingSystem {
         System.out.println("Object-Oriented Paradigm Implementation (Java)");
         System.out.println("===============================================\n");
         
+        // Initialize with seed data
+        System.out.println("Initializing system with sample data...\n");
+        manager.addEvent(new Event("Database Design Lecture", new Time(9, 0), new Time(10, 30),
+                       "Room 101", "Prof. Smith", "Introduction to database normalization"));
+        manager.addEvent(new Event("Web Development Lab", new Time(10, 0), new Time(11, 30),
+                       "Lab A", "Prof. Johnson", "HTML/CSS/JavaScript fundamentals"));
+        manager.addEvent(new Event("Data Structures Seminar", new Time(11, 0), new Time(12, 30),
+                       "Room 201", "Prof. Williams", "Advanced tree and graph algorithms"));
+        manager.addEvent(new Event("Database Design Practical", new Time(10, 30), new Time(12, 0),
+                       "Room 101", "Prof. Smith", "Hands-on database design exercise"));
+        manager.addEvent(new Event("Algorithms Workshop", new Time(13, 0), new Time(14, 30),
+                       "Lab B", "Prof. Brown", "Algorithm optimization techniques"));
+        manager.detectConflicts();
+        System.out.println("Sample data loaded. 5 events initialized.\n");
+
         while (true) {
             displayMenu();
             System.out.print("Enter your choice: ");
