@@ -1,0 +1,6 @@
+# Compiled executables
+*.exe
+
+# Java class files
+*.class
+

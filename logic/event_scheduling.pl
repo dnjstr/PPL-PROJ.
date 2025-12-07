@@ -1,11 +1,14 @@
 /* ========================================================================
  * EVENT SCHEDULING AND CONFLICT RESOLUTION SYSTEM
- * Logic Paradigm - Prolog Implementation
+ * Logic Paradigm - GNU Prolog Implementation
  * 
  * File: event_scheduling.pl
- * To run in SWI-Prolog:
- *   1. Load the file: ?- [event_scheduling].
- *   2. Run the system: ?- run_scheduling_system.
+ * To run in GNU Prolog:
+ *   1. Compile: gplc event_scheduling.pl
+ *   2. Run: ./event_scheduling
+ * Or interactively:
+ *   1. Load: gprolog --consult-file event_scheduling.pl
+ *   2. Query: | ?- run_scheduling_system.
  * ======================================================================== */
 
 /* FACTS - Knowledge base representing events */
@@ -18,6 +21,25 @@ event('Project Review Session', 9, 45, 10, 15, 'Room 101', 'Prof. A',
       'Student capstone reviews').
 event('Lab Equipment Maintenance', 11, 0, 12, 0, 'Computer Lab', 'Technician Joe', 
       'Monthly maintenance checks').
+
+/* ========================================================================
+ * UTILITY PREDICATES - GNU Prolog compatible
+ * ======================================================================== */
+
+/* Check if substring exists in string (GNU Prolog compatible) */
+contains_substring(String, Substring) :-
+    atom_codes(String, StringCodes),
+    atom_codes(Substring, SubCodes),
+    append(_, Rest, StringCodes),
+    append(SubCodes, _, Rest), !.
+
+/* Remove duplicates from list */
+remove_duplicates([], []).
+remove_duplicates([H|T], Result) :-
+    member(H, T), !,
+    remove_duplicates(T, Result).
+remove_duplicates([H|T], [H|Result]) :-
+    remove_duplicates(T, Result).
 
 /* ========================================================================
  * RULES - Logical relationships and inference
@@ -40,7 +62,7 @@ time_overlaps(StartH1, StartM1, EndH1, EndM1, StartH2, StartM2, EndH2, EndM2) :-
 location_conflict(Event1, Event2) :-
     event(Title1, SH1, SM1, EH1, EM1, Loc, Res1, Desc1),
     event(Title2, SH2, SM2, EH2, EM2, Loc, Res2, Desc2),
-    Title1 \= Title2,  % Different events
+    Title1 \= Title2,
     time_overlaps(SH1, SM1, EH1, EM1, SH2, SM2, EH2, EM2),
     Event1 = event(Title1, SH1, SM1, EH1, EM1, Loc, Res1, Desc1),
     Event2 = event(Title2, SH2, SM2, EH2, EM2, Loc, Res2, Desc2).
@@ -50,23 +72,24 @@ resource_conflict(Event1, Event2) :-
     event(Title1, SH1, SM1, EH1, EM1, Loc1, Res, Desc1),
     event(Title2, SH2, SM2, EH2, EM2, Loc2, Res, Desc2),
     Title1 \= Title2,
+    Loc1 \= Loc2,  /* Different locations to avoid duplicate conflicts */
     time_overlaps(SH1, SM1, EH1, EM1, SH2, SM2, EH2, EM2),
     Event1 = event(Title1, SH1, SM1, EH1, EM1, Loc1, Res, Desc1),
     Event2 = event(Title2, SH2, SM2, EH2, EM2, Loc2, Res, Desc2).
 
 /* Rule: An event has any conflict */
 has_conflict(EventTitle) :-
-    event(EventTitle, _, _, _, _, _, _, _),
-    (   location_conflict(event(EventTitle, _, _, _, _, _, _, _), _)
-    ;   resource_conflict(event(EventTitle, _, _, _, _, _, _), _)
-    ;   location_conflict(_, event(EventTitle, _, _, _, _, _, _, _))
-    ;   resource_conflict(_, event(EventTitle, _, _, _, _, _, _))
-    ).
+    event(EventTitle, SH, SM, EH, EM, Loc, Res, Desc),
+    (   location_conflict(event(EventTitle, SH, SM, EH, EM, Loc, Res, Desc), _)
+    ;   resource_conflict(event(EventTitle, SH, SM, EH, EM, Loc, Res, Desc), _)
+    ;   location_conflict(_, event(EventTitle, SH, SM, EH, EM, Loc, Res, Desc))
+    ;   resource_conflict(_, event(EventTitle, SH, SM, EH, EM, Loc, Res, Desc))
+    ), !.
 
 /* Rule: Events involving a specific resource */
 events_by_resource(Resource, EventTitle) :-
-    event(EventTitle, _, _, _, _, _, Res, _),
-    sub_string(Res, _, _, _, Resource).
+    event(EventTitle, _, _, _, _, _, ResourceList, _),
+    contains_substring(ResourceList, Resource).
 
 /* Rule: Count total events */
 count_events(Count) :-
@@ -76,28 +99,33 @@ count_events(Count) :-
 /* Rule: Count conflicting events */
 count_conflicts(Count) :-
     findall(T, has_conflict(T), Conflicts),
-    list_to_set(Conflicts, UniqueConflicts),
+    remove_duplicates(Conflicts, UniqueConflicts),
     length(UniqueConflicts, Count).
 
 /* ========================================================================
  * QUERIES AND REPORTING PREDICATES
  * ======================================================================== */
 
-/* Print formatted time (HH:MM format) */
+/* Print formatted time (HH:MM format) - GNU Prolog compatible */
 print_time(Hour, Min) :-
-    format('~|~`0t~d~2+:~|~`0t~d~2+', [Hour, Min]).
+    (Hour < 10 -> write('0') ; true),
+    write(Hour),
+    write(':'),
+    (Min < 10 -> write('0') ; true),
+    write(Min).
 
 /* Print a single event with all details */
 print_event(Title, SH, SM, EH, EM, Loc, Res, Desc) :-
     print_time(SH, SM),
     write(' - '),
     print_time(EH, EM),
-    format(': ~w (~w)~n', [Title, Loc]),
-    format('  Resource: ~w~n', [Res]),
+    write(': '), write(Title),
+    write(' ('), write(Loc), write(')'), nl,
+    write('  Resource: '), write(Res), nl,
     (has_conflict(Title) -> 
         write('  Status: Conflicting\n') ; 
         write('  Status: Successfully Scheduled\n')),
-    format('  Description: ~w~n~n', [Desc]).
+    write('  Description: '), write(Desc), nl, nl.
 
 /* Print all events in chronological order */
 print_chronological_schedule :-
@@ -107,19 +135,24 @@ print_chronological_schedule :-
     
     count_events(TotalCount),
     count_conflicts(ConflictCount),
-    format('Summary: ~w total events, conflicts detected, ~w events affected~n~n', 
-           [TotalCount, ConflictCount]),
+    write('Summary: '), write(TotalCount), write(' total events, '),
+    write(ConflictCount), write(' events affected'), nl, nl,
     write('Event List (Temporal Order):'), nl, nl,
     
-    % Collect and sort all events by start time
+    /* Collect and sort all events by start time */
     findall([SH, SM, Title, EH, EM, Loc, Res, Desc],
             event(Title, SH, SM, EH, EM, Loc, Res, Desc),
             Events),
     sort(Events, SortedEvents),
     
-    % Print each event in sorted order
-    forall(member([SH, SM, Title, EH, EM, Loc, Res, Desc], SortedEvents),
-           print_event(Title, SH, SM, EH, EM, Loc, Res, Desc)).
+    /* Print each event in sorted order */
+    print_all_events(SortedEvents).
+
+/* Helper to print all events from sorted list */
+print_all_events([]).
+print_all_events([[SH, SM, Title, EH, EM, Loc, Res, Desc]|Rest]) :-
+    print_event(Title, SH, SM, EH, EM, Loc, Res, Desc),
+    print_all_events(Rest).
 
 /* Print conflict report */
 print_conflict_report :-
@@ -132,25 +165,22 @@ print_conflict_report :-
 
 /* Print all location conflicts */
 print_location_conflicts :-
-    % Find all location conflicts
     findall(
         conflict(T1, SH1, SM1, EH1, EM1, Loc, T2, SH2, SM2, EH2, EM2),
         (location_conflict(
             event(T1, SH1, SM1, EH1, EM1, Loc, _, _),
             event(T2, SH2, SM2, EH2, EM2, Loc, _, _)),
-         T1 @< T2),  % Ensure we only get each pair once
+         T1 @< T2),
         LocationConflicts
     ),
-    
-    % Print each location conflict with numbering
     print_location_conflicts_numbered(LocationConflicts, 1).
 
 /* Helper predicate to print location conflicts with numbering */
 print_location_conflicts_numbered([], _).
 print_location_conflicts_numbered([conflict(T1, SH1, SM1, EH1, EM1, Loc, T2, SH2, SM2, EH2, EM2)|Rest], Num) :-
-    format('Conflict ~w: Location Overlap~n', [Num]),
+    write('Conflict '), write(Num), write(': Location Overlap'), nl,
     write('Type: Location Double-Booking'), nl,
-    format('Location: ~w~n', [Loc]),
+    write('Location: '), write(Loc), nl,
     write('Conflicting Events:'), nl,
     write('  - '), write(T1), write(' ('),
     print_time(SH1, SM1), write(' - '),
@@ -166,7 +196,6 @@ print_location_conflicts_numbered([conflict(T1, SH1, SM1, EH1, EM1, Loc, T2, SH2
 
 /* Print all resource conflicts */
 print_resource_conflicts :-
-    % Find all resource conflicts
     findall(
         conflict(T1, SH1, SM1, EH1, EM1, L1, Res, T2, SH2, SM2, EH2, EM2, L2),
         (resource_conflict(
@@ -175,16 +204,14 @@ print_resource_conflicts :-
          T1 @< T2),
         ResourceConflicts
     ),
-    
-    % Print each resource conflict
     print_resource_conflicts_list(ResourceConflicts).
 
 /* Helper predicate to print resource conflicts */
 print_resource_conflicts_list([]).
 print_resource_conflicts_list([conflict(T1, SH1, SM1, EH1, EM1, L1, Res, T2, SH2, SM2, EH2, EM2, L2)|Rest]) :-
     write('Conflict: Resource Overlap'), nl,
-    write('Type: Resource Double-Booking (Critical)'), nl,
-    format('Resource: ~w~n', [Res]),
+    write('Type: Resource Double-Booking'), nl,
+    write('Resource: '), write(Res), nl,
     write('Conflicting Events:'), nl,
     write('  - '), write(T1), write(' ('),
     print_time(SH1, SM1), write(' - '),
@@ -200,42 +227,41 @@ print_resource_conflicts_list([conflict(T1, SH1, SM1, EH1, EM1, L1, Res, T2, SH2
 /* Print filtered view for a specific resource */
 print_filtered_view(Resource) :-
     nl, write('========================================'), nl,
-    format('FILTERED VIEW: ~w~n', [Resource]),
+    write('FILTERED VIEW: '), write(Resource), nl,
     write('========================================'), nl, nl,
     
-    % Find all events for this resource
     findall(Title, events_by_resource(Resource, Title), EventTitles),
     length(EventTitles, EventCount),
     
     (EventCount = 0 ->
         write('No events found for this resource.'), nl
     ;
-        % Print each event for this resource
-        forall(
-            (events_by_resource(Resource, Title),
-             event(Title, SH, SM, EH, EM, Loc, Res, Desc)),
-            (
-                print_time(SH, SM), write(' - '),
-                print_time(EH, EM), write(': '),
-                write(Title), write(' ('), write(Loc), write(')'), nl,
-                (has_conflict(Title) ->
-                    write('  Status: Conflicting') ;
-                    write('  Status: No Conflict')),
-                nl, nl
-            )
-        ),
+        print_resource_events(Resource),
         
-        % Count conflicts for this resource
         findall(T, (events_by_resource(Resource, T), has_conflict(T)), Conflicts),
         length(Conflicts, ConflictCount),
-        format('Summary: ~w events found, ~w conflicts~n', [EventCount, ConflictCount]),
+        write('Summary: '), write(EventCount), write(' events found, '),
+        write(ConflictCount), write(' conflicts'), nl,
         
-        % Warning if 100% conflict rate
         (ConflictCount = EventCount, EventCount > 1 ->
             write('WARNING: 100% conflict rate - severe over-scheduling detected!'), nl,
             write('Recommendation: Implement buffer time between events.'), nl
         ; true)
     ).
+
+/* Helper to print events for a resource */
+print_resource_events(Resource) :-
+    events_by_resource(Resource, Title),
+    event(Title, SH, SM, EH, EM, Loc, _, _),
+    print_time(SH, SM), write(' - '),
+    print_time(EH, EM), write(': '),
+    write(Title), write(' ('), write(Loc), write(')'), nl,
+    (has_conflict(Title) ->
+        write('  Status: Conflicting') ;
+        write('  Status: No Conflict')),
+    nl, nl,
+    fail.
+print_resource_events(_).
 
 /* ========================================================================
  * MAIN EXECUTION PREDICATE
@@ -251,37 +277,9 @@ run_scheduling_system :-
     print_chronological_schedule,
     print_filtered_view('Prof. A').
 
-/* ========================================================================
- * ADDITIONAL QUERY EXAMPLES
- * ======================================================================== */
-
-/* Example queries you can run:
- * 
- * 1. List all events:
- *    ?- event(Title, _, _, _, _, _, _, _).
- * 
- * 2. Find events in a specific location:
- *    ?- event(Title, _, _, _, _, 'Room 201', _, _).
- * 
- * 3. Check if two specific events have a location conflict:
- *    ?- location_conflict(event('Math Seminar', _, _, _, _, _, _, _), Event2).
- * 
- * 4. Find all events involving Prof. A:
- *    ?- events_by_resource('Prof. A', Title).
- * 
- * 5. Check if a specific event has any conflict:
- *    ?- has_conflict('Math Seminar').
- * 
- * 6. Count total events:
- *    ?- count_events(Count).
- * 
- * 7. Run filtered view for any resource:
- *    ?- print_filtered_view('Technician Joe').
- * 
- * 8. Run the complete system:
- *    ?- run_scheduling_system.
- */
+/* Entry point for compiled executable */
+:- initialization(run_scheduling_system).
 
 /* ========================================================================
- * END OF PROLOG IMPLEMENTATION
- * ======================================================================== */
+ * END OF GNU PROLOG IMPLEMENTATION
+ * ========================================================================*/
