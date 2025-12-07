@@ -1,6 +1,6 @@
 /*
  * EVENT SCHEDULING AND CONFLICT RESOLUTION SYSTEM
- * Object-Oriented Paradigm - Java Implementation
+ * Object-Oriented Paradigm - Java Implementation with User Input
  * 
  * File: EventSchedulingSystem.java
  * Compile: javac EventSchedulingSystem.java
@@ -11,6 +11,7 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.List;
+import java.util.Scanner;
 
 /*
  * Class representing time with encapsulation
@@ -283,52 +284,164 @@ class ScheduleManager {
             }
         }
     }
-}
-
-/*
- * Main driver class
- */
-public class EventSchedulingSystem {
-    public static void main(String[] args) {
-        System.out.println("EVENT SCHEDULING AND CONFLICT RESOLUTION SYSTEM");
-        System.out.println("Object-Oriented Paradigm Implementation (Java)");
-        System.out.println("===============================================");
-        
-        // Create schedule manager - demonstrates object creation
-        ScheduleManager manager = new ScheduleManager();
-        
-        // Add events - demonstrates method calls
-        manager.addEvent(new Event("Math Seminar", 
-                                   new Time(9, 0), new Time(10, 30),
-                                   "Room 201", "Prof. A", 
-                                   "Linear Algebra Review"));
-        
-        manager.addEvent(new Event("CS Department Meeting", 
-                                   new Time(10, 0), new Time(11, 0),
-                                   "Room 201", "Prof. B, Prof. C", 
-                                   "Curriculum planning discussions"));
-        
-        manager.addEvent(new Event("Project Review Session", 
-                                   new Time(9, 45), new Time(10, 15),
-                                   "Room 101", "Prof. A", 
-                                   "Student capstone reviews"));
-        
-        manager.addEvent(new Event("Lab Equipment Maintenance", 
-                                   new Time(11, 0), new Time(12, 0),
-                                   "Computer Lab", "Technician Joe", 
-                                   "Monthly maintenance checks"));
-        
-        // Execute scheduling operations - demonstrates message passing
-        manager.detectConflicts();
-        manager.printConflictReport();
-        manager.printChronologicalSchedule();
-        manager.printFilteredView("Prof. A");
+    
+    public boolean hasEvents() {
+        return !events.isEmpty();
     }
 }
 
 /*
-    * To run the program
-    * # Compile: javac EventSchedulingSystem.java
-    * Run: java EventSchedulingSystem
+ * Main driver class with user input
+ */
+public class EventSchedulingSystem {
+    
+    public static void main(String[] args) {
+        Scanner scanner = new Scanner(System.in);
+        ScheduleManager manager = new ScheduleManager();
+        
+        System.out.println("===============================================");
+        System.out.println("EVENT SCHEDULING AND CONFLICT RESOLUTION SYSTEM");
+        System.out.println("Object-Oriented Paradigm Implementation (Java)");
+        System.out.println("===============================================\n");
+        
+        while (true) {
+            displayMenu();
+            System.out.print("Enter your choice: ");
+            
+            int choice = 0;
+            try {
+                choice = Integer.parseInt(scanner.nextLine());
+            } catch (NumberFormatException e) {
+                System.out.println("\nInvalid input. Please enter a number.\n");
+                continue;
+            }
+            
+            switch (choice) {
+                case 1:
+                    addEventFromInput(scanner, manager);
+                    break;
+                case 2:
+                    if (manager.hasEvents()) {
+                        manager.detectConflicts();
+                        manager.printConflictReport();
+                    } else {
+                        System.out.println("\nNo events to check. Please add events first.\n");
+                    }
+                    break;
+                case 3:
+                    if (manager.hasEvents()) {
+                        manager.detectConflicts();
+                        manager.printChronologicalSchedule();
+                    } else {
+                        System.out.println("\nNo events to display. Please add events first.\n");
+                    }
+                    break;
+                case 4:
+                    if (manager.hasEvents()) {
+                        System.out.print("\nEnter resource name to filter: ");
+                        String resourceName = scanner.nextLine();
+                        manager.detectConflicts();
+                        manager.printFilteredView(resourceName);
+                    } else {
+                        System.out.println("\nNo events to filter. Please add events first.\n");
+                    }
+                    break;
+                case 5:
+                    System.out.println("\nThank you for using the Event Scheduling System!");
+                    scanner.close();
+                    return;
+                default:
+                    System.out.println("\nInvalid choice. Please select 1-5.\n");
+            }
+        }
+    }
+    
+    private static void displayMenu() {
+        System.out.println("========================================");
+        System.out.println("MAIN MENU");
+        System.out.println("========================================");
+        System.out.println("1. Add New Event");
+        System.out.println("2. Detect and Display Conflicts");
+        System.out.println("3. Display Chronological Schedule");
+        System.out.println("4. Filter Events by Resource");
+        System.out.println("5. Exit");
+        System.out.println("========================================");
+    }
+    
+    private static void addEventFromInput(Scanner scanner, ScheduleManager manager) {
+        System.out.println("\n========================================");
+        System.out.println("ADD NEW EVENT");
+        System.out.println("========================================");
+        
+        try {
+            System.out.print("Event Title: ");
+            String title = scanner.nextLine();
+            
+            System.out.print("Start Time (HH:MM in 24-hour format): ");
+            String startTimeStr = scanner.nextLine();
+            String[] startParts = startTimeStr.split(":");
+            int startHour = Integer.parseInt(startParts[0]);
+            int startMinute = Integer.parseInt(startParts[1]);
+            
+            System.out.print("End Time (HH:MM in 24-hour format): ");
+            String endTimeStr = scanner.nextLine();
+            String[] endParts = endTimeStr.split(":");
+            int endHour = Integer.parseInt(endParts[0]);
+            int endMinute = Integer.parseInt(endParts[1]);
+            
+            System.out.print("Location: ");
+            String location = scanner.nextLine();
+            
+            System.out.print("Resource (e.g., Prof. Name, Equipment): ");
+            String resource = scanner.nextLine();
+            
+            System.out.print("Description: ");
+            String description = scanner.nextLine();
+            
+            // Validate time
+            if (startHour < 0 || startHour > 23 || startMinute < 0 || startMinute > 59 ||
+                endHour < 0 || endHour > 23 || endMinute < 0 || endMinute > 59) {
+                System.out.println("\nInvalid time format. Please use valid hours (0-23) and minutes (0-59).\n");
+                return;
+            }
+            
+            Time start = new Time(startHour, startMinute);
+            Time end = new Time(endHour, endMinute);
+            
+            if (start.toMinutes() >= end.toMinutes()) {
+                System.out.println("\nError: Start time must be before end time.\n");
+                return;
+            }
+            
+            Event event = new Event(title, start, end, location, resource, description);
+            manager.addEvent(event);
+            
+            System.out.println("\nEvent added successfully!");
+            System.out.println("Event: " + event + "\n");
+            
+        } catch (Exception e) {
+            System.out.println("\nError adding event. Please check your input format.\n");
+        }
+    }
+}
 
-*/
+/*
+ * USAGE INSTRUCTIONS:
+ * 
+ * 1. Compile: javac EventSchedulingSystem.java
+ * 2. Run: java EventSchedulingSystem
+ * 3. Follow the menu prompts to:
+ *    - Add events with title, time, location, resource, and description
+ *    - Detect conflicts between events
+ *    - View chronological schedule
+ *    - Filter events by resource
+ * 
+ * Time Format: Use 24-hour format (e.g., 09:00, 14:30)
+ * Example Event:
+ *   Title: Math Seminar
+ *   Start: 09:00
+ *   End: 10:30
+ *   Location: Room 201
+ *   Resource: Prof. A
+ *   Description: Linear Algebra Review
+ */
