@@ -1,0 +1,8 @@
+FOR LISP
+https://www.jdoodle.com/execute-clisp-online
+
+FOR PROLOG
+https://www.jdoodle.com/execute-prolog-online
+
+Why? Some compilers behave differently—users may not be able to provide input or may encounter other issues. 
+Using JDoodle ensures that the code runs properly and consistently for everyone. Thankyou

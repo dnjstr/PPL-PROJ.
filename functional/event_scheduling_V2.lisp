@@ -12,6 +12,7 @@
   (minute 0 :type integer))
 
 (defstruct event
+  (id 0 :type integer)
   title
   start-time
   end-time
@@ -25,6 +26,7 @@
 ;;; ========================================================================
 
 (defparameter *events* '())
+(defparameter *next-id* 1)
 
 ;;; ========================================================================
 ;;; PURE FUNCTIONS
@@ -105,6 +107,14 @@
 (defun count-conflicting-events (events)
   (count-if #'event-conflicting events))
 
+(defun find-event-by-id (events id)
+  "Find an event by its ID"
+  (find id events :key #'event-id :test #'=))
+
+(defun remove-event-by-id (events id)
+  "Remove an event by its ID"
+  (remove id events :key #'event-id :test #'=))
+
 ;;; ========================================================================
 ;;; UTILITY FUNCTIONS
 ;;; ========================================================================
@@ -144,13 +154,15 @@
   (format t "Conflicting Events:~%")
   (let ((e1 (getf conflict :event1))
         (e2 (getf conflict :event2)))
-    (format t "  - ~a (~a - ~a)" 
+    (format t "  - [ID:~d] ~a (~a - ~a)" 
+            (event-id e1)
             (event-title e1)
             (format-time (event-start-time e1))
             (format-time (event-end-time e1)))
     (when (string= (getf conflict :type) "Resource")
       (format t " in ~a" (event-location e1)))
-    (format t "~%  - ~a (~a - ~a)" 
+    (format t "~%  - [ID:~d] ~a (~a - ~a)" 
+            (event-id e2)
             (event-title e2)
             (format-time (event-start-time e2))
             (format-time (event-end-time e2)))
@@ -194,7 +206,8 @@
     (format t "Event List (Temporal Order):~%~%")
     
     (dolist (event sorted-events)
-      (format t "~a - ~a: ~a (~a)~%"
+      (format t "[ID:~d] ~a - ~a: ~a (~a)~%"
+              (event-id event)
               (format-time (event-start-time event))
               (format-time (event-end-time event))
               (event-title event)
@@ -218,7 +231,8 @@
         (format t "No events found for this resource.~%")
         (progn
           (dolist (event filtered-events)
-            (format t "~a - ~a: ~a (~a)~%"
+            (format t "[ID:~d] ~a - ~a: ~a (~a)~%"
+                    (event-id event)
                     (format-time (event-start-time event))
                     (format-time (event-end-time event))
                     (event-title event)
@@ -236,6 +250,47 @@
                      (= conflict-count (length filtered-events)))
             (format t "WARNING: 100%% conflict rate - severe over-scheduling detected!~%")
             (format t "Recommendation: Implement buffer time between events.~%"))))))
+
+(defun list-all-events ()
+  "List all events with their details"
+  (format t "~%========================================~%")
+  (format t "ALL EVENTS~%")
+  (format t "========================================~%~%")
+  
+  (if (null *events*)
+      (format t "No events scheduled.~%~%")
+      (dolist (event *events*)
+        (format t "[ID:~d] ~a - ~a: ~a (~a)~%"
+                (event-id event)
+                (format-time (event-start-time event))
+                (format-time (event-end-time event))
+                (event-title event)
+                (event-location event))
+        (format t "  Resource: ~a~%" (event-resource event))
+        (format t "  Status: ~a~%"
+                (if (event-conflicting event) "CONFLICTING" "OK"))
+        (format t "  Description: ~a~%~%" (event-description event)))))
+
+(defun list-conflicting-events ()
+  "List only conflicting events"
+  (format t "~%========================================~%")
+  (format t "CONFLICTING EVENTS~%")
+  (format t "========================================~%~%")
+  
+  (let ((conflicting (remove-if-not #'event-conflicting *events*)))
+    (if (null conflicting)
+        (format t "No conflicting events.~%~%")
+        (progn
+          (dolist (event conflicting)
+            (format t "[ID:~d] ~a - ~a: ~a (~a)~%"
+                    (event-id event)
+                    (format-time (event-start-time event))
+                    (format-time (event-end-time event))
+                    (event-title event)
+                    (event-location event))
+            (format t "  Resource: ~a~%" (event-resource event))
+            (format t "  Description: ~a~%~%" (event-description event)))
+          (format t "Total conflicting events: ~d~%~%" (length conflicting))))))
 
 ;;; ========================================================================
 ;;; USER INPUT FUNCTIONS
@@ -290,20 +345,204 @@
                   (let ((description (read-line-safe)))
                     
                     (let ((new-event (make-event
+                                     :id *next-id*
                                      :title title
                                      :start-time start-time
                                      :end-time end-time
                                      :location location
                                      :resource resource
                                      :description description)))
+                      (incf *next-id*)
                       (setf *events* (append *events* (list new-event)))
                       (format t "~%Event added successfully!~%")
-                      (format t "Event: ~a - ~a: ~a (~a)~%~%"
+                      (format t "Event [ID:~d]: ~a - ~a: ~a (~a)~%~%"
+                              (event-id new-event)
                               (format-time start-time)
                               (format-time end-time)
                               title
-                              location))))))
+                              location)
+                      
+                      ;; Check for conflicts immediately
+                      (let* ((conflicts (find-conflicts *events*))
+                             (marked-events (mark-conflicting-events *events* conflicts)))
+                        (setf *events* marked-events)
+                        (when (event-conflicting (car (last *events*)))
+                          (format t "WARNING: This event has conflicts with existing events!~%")
+                          (format t "Use 'Detect and Display Conflicts' to see details.~%~%"))))))))
             (format t "~%Error: Invalid time format or start time is not before end time.~%~%"))))))
+
+(defun edit-event ()
+  "Edit an existing event"
+  (format t "~%========================================~%")
+  (format t "EDIT EVENT~%")
+  (format t "========================================~%")
+  
+  (let* ((conflicts (find-conflicts *events*))
+         (marked-events (mark-conflicting-events *events* conflicts)))
+    (setf *events* marked-events)
+    (list-all-events))
+  
+  (format t "Enter Event ID to edit: ")
+  (finish-output)
+  (let ((id (parse-integer (read-line-safe) :junk-allowed t)))
+    (if (null id)
+        (format t "~%Invalid input.~%~%")
+        (let ((event (find-event-by-id *events* id)))
+          (if (null event)
+              (format t "~%Event not found!~%~%")
+              (progn
+                (format t "~%Current Event Details:~%")
+                (format t "[ID:~d] ~a - ~a: ~a (~a)~%"
+                        (event-id event)
+                        (format-time (event-start-time event))
+                        (format-time (event-end-time event))
+                        (event-title event)
+                        (event-location event))
+                (format t "Resource: ~a~%" (event-resource event))
+                (format t "Description: ~a~%~%" (event-description event))
+                
+                (format t "What would you like to edit?~%")
+                (format t "1. Title~%")
+                (format t "2. Time~%")
+                (format t "3. Location~%")
+                (format t "4. Resource~%")
+                (format t "5. Description~%")
+                (format t "6. Edit All~%")
+                (format t "7. Cancel~%")
+                (format t "Choice: ")
+                (finish-output)
+                
+                (let ((choice (parse-integer (read-line-safe) :junk-allowed t)))
+                  (cond
+                    ((= choice 1)
+                     (format t "New Title: ")
+                     (finish-output)
+                     (setf (event-title event) (read-line-safe)))
+                    
+                    ((= choice 2)
+                     (format t "New Start Time (HH:MM): ")
+                     (finish-output)
+                     (let ((start (parse-time (read-line-safe))))
+                       (format t "New End Time (HH:MM): ")
+                       (finish-output)
+                       (let ((end (parse-time (read-line-safe))))
+                         (if (and start end (< (time-to-minutes start) (time-to-minutes end)))
+                             (progn
+                               (setf (event-start-time event) start)
+                               (setf (event-end-time event) end))
+                             (format t "~%Error: Invalid time.~%~%")))))
+                    
+                    ((= choice 3)
+                     (format t "New Location: ")
+                     (finish-output)
+                     (setf (event-location event) (read-line-safe)))
+                    
+                    ((= choice 4)
+                     (format t "New Resource: ")
+                     (finish-output)
+                     (setf (event-resource event) (read-line-safe)))
+                    
+                    ((= choice 5)
+                     (format t "New Description: ")
+                     (finish-output)
+                     (setf (event-description event) (read-line-safe)))
+                    
+                    ((= choice 6)
+                     (format t "New Title: ")
+                     (finish-output)
+                     (setf (event-title event) (read-line-safe))
+                     
+                     (format t "New Start Time (HH:MM): ")
+                     (finish-output)
+                     (let ((start (parse-time (read-line-safe))))
+                       (format t "New End Time (HH:MM): ")
+                       (finish-output)
+                       (let ((end (parse-time (read-line-safe))))
+                         (when (and start end)
+                           (setf (event-start-time event) start)
+                           (setf (event-end-time event) end))))
+                     
+                     (format t "New Location: ")
+                     (finish-output)
+                     (setf (event-location event) (read-line-safe))
+                     
+                     (format t "New Resource: ")
+                     (finish-output)
+                     (setf (event-resource event) (read-line-safe))
+                     
+                     (format t "New Description: ")
+                     (finish-output)
+                     (setf (event-description event) (read-line-safe)))
+                    
+                    ((= choice 7)
+                     (format t "~%Edit cancelled.~%~%")
+                     (return-from edit-event))
+                    
+                    (t
+                     (format t "~%Invalid choice.~%~%")
+                     (return-from edit-event)))
+                  
+                  (when (and choice (/= choice 7))
+                    (format t "~%Event updated successfully!~%")
+                    (format t "Updated Event [ID:~d]: ~a - ~a: ~a (~a)~%~%"
+                            (event-id event)
+                            (format-time (event-start-time event))
+                            (format-time (event-end-time event))
+                            (event-title event)
+                            (event-location event))
+                    
+                    ;; Recheck conflicts
+                    (let* ((conflicts (find-conflicts *events*))
+                           (marked-events (mark-conflicting-events *events* conflicts)))
+                      (setf *events* marked-events)
+                      (if (event-conflicting event)
+                          (progn
+                            (format t "WARNING: This event still has conflicts!~%")
+                            (format t "Use 'Detect and Display Conflicts' to see details.~%~%"))
+                          (format t "This event has no conflicts.~%~%")))))))))))
+
+(defun delete-event ()
+  "Delete an existing event"
+  (format t "~%========================================~%")
+  (format t "DELETE EVENT~%")
+  (format t "========================================~%")
+  
+  (let* ((conflicts (find-conflicts *events*))
+         (marked-events (mark-conflicting-events *events* conflicts)))
+    (setf *events* marked-events)
+    (list-all-events))
+  
+  (format t "Enter Event ID to delete: ")
+  (finish-output)
+  (let ((id (parse-integer (read-line-safe) :junk-allowed t)))
+    (if (null id)
+        (format t "~%Invalid input.~%~%")
+        (let ((event (find-event-by-id *events* id)))
+          (if (null event)
+              (format t "~%Event not found!~%~%")
+              (progn
+                (format t "~%Event to delete:~%")
+                (format t "[ID:~d] ~a - ~a: ~a (~a)~%"
+                        (event-id event)
+                        (format-time (event-start-time event))
+                        (format-time (event-end-time event))
+                        (event-title event)
+                        (event-location event))
+                
+                (format t "~%Are you sure you want to delete this event? (yes/no): ")
+                (finish-output)
+                (let ((confirm (string-downcase (read-line-safe))))
+                  (if (or (string= confirm "yes") (string= confirm "y"))
+                      (progn
+                        (setf *events* (remove-event-by-id *events* id))
+                        (format t "~%Event deleted successfully!~%~%")
+                        
+                        ;; Recheck conflicts after deletion
+                        (let* ((conflicts (find-conflicts *events*))
+                               (marked-events (mark-conflicting-events *events* conflicts)))
+                          (setf *events* marked-events)
+                          (format t "Conflicts have been re-evaluated.~%~%")))
+                      (format t "~%Deletion cancelled.~%~%")))))))))
 
 (defun display-menu ()
   "Display the main menu"
@@ -311,10 +550,14 @@
   (format t "MAIN MENU~%")
   (format t "========================================~%")
   (format t "1. Add New Event~%")
-  (format t "2. Detect and Display Conflicts~%")
-  (format t "3. Display Chronological Schedule~%")
-  (format t "4. Filter Events by Resource~%")
-  (format t "5. Exit~%")
+  (format t "2. View All Events~%")
+  (format t "3. Detect and Display Conflicts~%")
+  (format t "4. View Conflicting Events Only~%")
+  (format t "5. Edit Event~%")
+  (format t "6. Delete Event~%")
+  (format t "7. Display Chronological Schedule~%")
+  (format t "8. Filter Events by Resource~%")
+  (format t "9. Exit~%")
   (format t "========================================~%"))
 
 (defun process-menu-choice (choice)
@@ -325,13 +568,39 @@
     
     ((= choice 2)
      (if (null *events*)
+         (format t "~%No events to display. Please add events first.~%~%")
+         (let* ((conflicts (find-conflicts *events*))
+                (marked-events (mark-conflicting-events *events* conflicts)))
+           (setf *events* marked-events)
+           (list-all-events))))
+    
+    ((= choice 3)
+     (if (null *events*)
          (format t "~%No events to check. Please add events first.~%~%")
          (let* ((conflicts (find-conflicts *events*))
                 (marked-events (mark-conflicting-events *events* conflicts)))
            (setf *events* marked-events)
            (print-conflict-report conflicts))))
     
-    ((= choice 3)
+    ((= choice 4)
+     (if (null *events*)
+         (format t "~%No events to check. Please add events first.~%~%")
+         (let* ((conflicts (find-conflicts *events*))
+                (marked-events (mark-conflicting-events *events* conflicts)))
+           (setf *events* marked-events)
+           (list-conflicting-events))))
+    
+    ((= choice 5)
+     (if (null *events*)
+         (format t "~%No events to edit. Please add events first.~%~%")
+         (edit-event)))
+    
+    ((= choice 6)
+     (if (null *events*)
+         (format t "~%No events to delete. Please add events first.~%~%")
+         (delete-event)))
+    
+    ((= choice 7)
      (if (null *events*)
          (format t "~%No events to display. Please add events first.~%~%")
          (let* ((conflicts (find-conflicts *events*))
@@ -339,7 +608,7 @@
            (setf *events* marked-events)
            (print-chronological-schedule *events*))))
     
-    ((= choice 4)
+    ((= choice 8)
      (if (null *events*)
          (format t "~%No events to filter. Please add events first.~%~%")
          (progn
@@ -351,12 +620,12 @@
              (setf *events* marked-events)
              (print-filtered-view *events* resource-name)))))
     
-    ((= choice 5)
+    ((= choice 9)
      (format t "~%Thank you for using the Event Scheduling System!~%")
      t)
     
     (t
-     (format t "~%Invalid choice. Please select 1-5.~%~%")
+     (format t "~%Invalid choice. Please select 1-9.~%~%")
      nil)))
 
 ;;; ========================================================================
