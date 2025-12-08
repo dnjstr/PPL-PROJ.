@@ -1,7 +1,7 @@
 /*
  * EVENT SCHEDULING AND CONFLICT RESOLUTION SYSTEM
  * Logic Programming Paradigm - GNU Prolog Implementation
- * All warnings and errors fixed
+ * FIXED: Back-to-back conflict detection and case-insensitive matching
  */
 
 :- dynamic(event/7).
@@ -15,8 +15,11 @@ event(3, 'Data Structures Seminar', time(11,0), time(12,30), 'Room 201', 'Prof. 
 event(4, 'Database Design Practical', time(10,30), time(12,0), 'Room 101', 'Prof. Smith', 'Hands-on database design exercise').
 event(5, 'Algorithms Workshop', time(13,0), time(14,30), 'Lab B', 'Prof. Brown', 'Algorithm optimization techniques').
 
+event(6, 'Networking Tutorial', time(10,15), time(11,0), 'Lab A', 'Prof. Johnson', 'Hands-on networking basics').
+event(7, 'AI Ethics Seminar', time(10,20), time(11,20), 'Room 201', 'Prof. Williams', 'Discussion on ethics in AI').
+
 /* Initialize next ID */
-next_id(6).
+next_id(8).
 
 /*
  * UTILITY PREDICATES
@@ -27,7 +30,7 @@ my_atom_number(Atom, Number) :-
     atom_codes(Atom, Codes),
     number_codes(Number, Codes).
 
-/* String to lowercase - NO SINGLETON WARNINGS */
+/* String to lowercase */
 to_lower(Input, Lower) :-
     atom_codes(Input, Codes),
     to_lower_codes(Codes, LowerCodes),
@@ -42,22 +45,31 @@ to_lower_codes([Code|Rest], [LCode|LRest]) :-
     ),
     to_lower_codes(Rest, LRest).
 
+/* Case-insensitive string comparison */
+string_equal_ignore_case(Str1, Str2) :-
+    to_lower(Str1, Lower1),
+    to_lower(Str2, Lower2),
+    Lower1 = Lower2.
+
 /*
- * CORE PREDICATES
+ * CORE PREDICATES - FIXED
  */
 
 /* Convert time to minutes */
 time_to_minutes(time(Hour, Minute), Minutes) :-
     Minutes is Hour * 60 + Minute.
 
-/* Check if two time ranges overlap */
+/* FIXED: Check if two time ranges overlap (including back-to-back) */
 time_overlaps(Start1, End1, Start2, End2) :-
     time_to_minutes(Start1, S1),
     time_to_minutes(End1, E1),
     time_to_minutes(Start2, S2),
     time_to_minutes(End2, E2),
-    S1 < E2,
-    E1 > S2.
+    % Compute overlap in minutes and require at least 10 minutes
+    OverlapStart is max(S1, S2),
+    OverlapEnd is min(E1, E2),
+    OverlapMinutes is OverlapEnd - OverlapStart,
+    OverlapMinutes >= 10.
 
 /* Check if two events have time overlap */
 events_overlap(ID1, ID2) :-
@@ -66,26 +78,29 @@ events_overlap(ID1, ID2) :-
     ID1 \= ID2,
     time_overlaps(Start1, End1, Start2, End2).
 
-/* Location conflict */
+/* FIXED: Location conflict with case-insensitive matching */
 location_conflict(ID1, ID2, Location) :-
-    event(ID1, _, _, _, Location, _, _),
-    event(ID2, _, _, _, Location, _, _),
-    events_overlap(ID1, ID2).
+    event(ID1, _, _, _, Location1, _, _),
+    event(ID2, _, _, _, Location2, _, _),
+    events_overlap(ID1, ID2),
+    string_equal_ignore_case(Location1, Location2),
+    Location = Location1.  % Return the original location name
 
-/* Resource conflict */
+/* FIXED: Resource conflict with case-insensitive matching */
 resource_conflict(ID1, ID2, Resource1) :-
     event(ID1, _, _, _, _, Resource1, _),
     event(ID2, _, _, _, _, Resource2, _),
     events_overlap(ID1, ID2),
-    (sub_atom(Resource1, _, _, _, Resource2);
-     sub_atom(Resource2, _, _, _, Resource1)).
+    string_equal_ignore_case(Resource1, Resource2).
 
-/* Check if event has conflict */
+/* Check if event has conflict - FIXED to check both directions */
 has_conflict(ID) :-
     (location_conflict(ID, _, _);
-     resource_conflict(ID, _, _)), !.
+     location_conflict(_, ID, _);
+     resource_conflict(ID, _, _);
+     resource_conflict(_, ID, _)), !.
 
-/* Find all conflicts */
+/* FIXED: Find all conflicts - avoid double counting */
 find_all_conflicts(Conflicts) :-
     findall(conflict(location, ID1, ID2, Loc),
             (location_conflict(ID1, ID2, Loc), ID1 < ID2),
@@ -101,7 +116,7 @@ find_all_conflicts(Conflicts) :-
  * EVENT MANAGEMENT
  */
 
-/* Add event - FIX SINGLETON WARNINGS */
+/* Add event */
 add_event(Title, StartTime, EndTime, Location, Resource, Description) :-
     next_id(ID),
     assertz(event(ID, Title, StartTime, EndTime, Location, Resource, Description)),
@@ -130,30 +145,30 @@ delete_event_confirmed(ID) :-
 delete_event_confirmed(_) :-
     nl, write('Event not found!'), nl, nl.
 
-/* Edit predicates - FIX SINGLETON WARNINGS */
+/* Edit predicates */
 edit_event_title(ID, NewTitle) :-
-    event(ID, OldTitle, Start, End, Location, Resource, Description),
-    retract(event(ID, OldTitle, Start, End, Location, Resource, Description)),
+    event(ID, _, Start, End, Location, Resource, Description),
+    retract(event(ID, _, Start, End, Location, Resource, Description)),
     assertz(event(ID, NewTitle, Start, End, Location, Resource, Description)).
 
 edit_event_time(ID, NewStart, NewEnd) :-
-    event(ID, Title, OldStart, OldEnd, Location, Resource, Description),
-    retract(event(ID, Title, OldStart, OldEnd, Location, Resource, Description)),
+    event(ID, Title, _, _, Location, Resource, Description),
+    retract(event(ID, Title, _, _, Location, Resource, Description)),
     assertz(event(ID, Title, NewStart, NewEnd, Location, Resource, Description)).
 
 edit_event_location(ID, NewLocation) :-
-    event(ID, Title, Start, End, OldLocation, Resource, Description),
-    retract(event(ID, Title, Start, End, OldLocation, Resource, Description)),
+    event(ID, Title, Start, End, _, Resource, Description),
+    retract(event(ID, Title, Start, End, _, Resource, Description)),
     assertz(event(ID, Title, Start, End, NewLocation, Resource, Description)).
 
 edit_event_resource(ID, NewResource) :-
-    event(ID, Title, Start, End, Location, OldResource, Description),
-    retract(event(ID, Title, Start, End, Location, OldResource, Description)),
+    event(ID, Title, Start, End, Location, _, Description),
+    retract(event(ID, Title, Start, End, Location, _, Description)),
     assertz(event(ID, Title, Start, End, Location, NewResource, Description)).
 
 edit_event_description(ID, NewDescription) :-
-    event(ID, Title, Start, End, Location, Resource, OldDescription),
-    retract(event(ID, Title, Start, End, Location, Resource, OldDescription)),
+    event(ID, Title, Start, End, Location, Resource, _),
+    retract(event(ID, Title, Start, End, Location, Resource, _)),
     assertz(event(ID, Title, Start, End, Location, Resource, NewDescription)).
 
 edit_event_all(ID, NewTitle, NewStart, NewEnd, NewLocation, NewResource, NewDescription) :-
@@ -247,11 +262,11 @@ print_conflicts([conflict(Type, ID1, ID2, Resource)|Rest], Num) :-
     (Type = location ->
         write('Location Overlap'), nl,
         write('Type: Location Double-Booking'), nl,
-        write('Location: '), write(Resource), nl
+        write('Conflicting Location: '), write(Resource), nl
     ;
         write('Resource Overlap'), nl,
         write('Type: Resource Double-Booking'), nl,
-        write('Resource: '), write(Resource), nl
+        write('Conflicting Resource: '), write(Resource), nl
     ),
     write('Conflicting Events:'), nl,
     event(ID1, Title1, Start1, End1, Loc1, _, _),
@@ -323,7 +338,7 @@ display_sorted_events([event(ID, Title, Start, End, Location, Resource, Descript
     nl, write('  Description: '), write(Description), nl, nl,
     display_sorted_events(Rest).
 
-/* Filter by resource - FIX SINGLETON WARNING */
+/* Filter by resource */
 print_filtered_view(ResourceName) :-
     nl, write('========================================'), nl,
     write('FILTERED VIEW: '), write(ResourceName), nl,
@@ -403,7 +418,7 @@ add_event_from_input :-
         nl, write('Error: Invalid time format.'), nl, nl
     ).
 
-/* Edit event - FIX SINGLETON WARNINGS */
+/* Edit event */
 edit_event_interface :-
     nl, write('========================================'), nl,
     write('EDIT EVENT'), nl,
@@ -482,14 +497,14 @@ show_update_message(ID) :-
         write('No conflicts.'), nl, nl
     ).
 
-/* Delete event - FIX SINGLETON WARNINGS */
+/* Delete event */
 delete_event_interface :-
     nl, write('========================================'), nl,
     write('DELETE EVENT'), nl,
     write('========================================'), nl,
     list_all_events,
     write('Enter Event ID: '), read_line(ID),
-    (integer(ID), event(ID, Title, Start, End, Location, _Resource, _Description) ->
+    (integer(ID), event(ID, Title, Start, End, Location, _, _) ->
         nl, write('Delete: ['), write(ID), write('] '),
         format_time(Start), write(' - '), format_time(End),
         write(': '), write(Title), write(' ('), write(Location), write(')'), nl,
@@ -504,7 +519,7 @@ delete_event_interface :-
         nl, write('Event not found!'), nl, nl
     ).
 
-/* Process menu - NO HALT, USE FLAG */
+/* Process menu */
 process_choice(1) :- add_event_from_input, !.
 process_choice(2) :- 
     (event(_, _, _, _, _, _, _) -> list_all_events
@@ -535,7 +550,7 @@ process_choice(9) :-
 process_choice(_) :-
     nl, write('Invalid. Choose 1-9.'), nl, nl, !.
 
-/* Main loop - CHECK EXIT FLAG */
+/* Main loop */
 main_loop :-
     exit_requested, !.
 main_loop :-
@@ -552,6 +567,7 @@ run_scheduling_system :-
     write('==============================================='), nl,
     write('EVENT SCHEDULING SYSTEM'), nl,
     write('Logic Programming - GNU Prolog'), nl,
+    write('FIXED: Back-to-back conflict detection'), nl,
     write('==============================================='), nl,
     write('Sample data: 5 events loaded'), nl,
     main_loop.

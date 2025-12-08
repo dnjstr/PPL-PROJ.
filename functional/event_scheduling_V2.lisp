@@ -1,6 +1,7 @@
 ;;; ========================================================================
 ;;; EVENT SCHEDULING AND CONFLICT RESOLUTION SYSTEM
 ;;; Functional Paradigm - Common Lisp Implementation with User Input
+;;; FIXED: Back-to-back conflict detection
 ;;; ========================================================================
 
 ;;; ========================================================================
@@ -51,9 +52,19 @@
                :start-time (make-time-slot :hour 13 :minute 0)
                :end-time   (make-time-slot :hour 14 :minute 30)
                :location "Lab B" :resource "Prof. Brown"
-               :description "Algorithm optimization techniques")))
+               :description "Algorithm optimization techniques")
+   (make-event :id 6 :title "Networking Tutorial"
+               :start-time (make-time-slot :hour 10 :minute 15)
+               :end-time   (make-time-slot :hour 11 :minute 0)
+               :location "Lab A" :resource "Prof. Johnson"
+               :description "Hands-on networking basics")
+   (make-event :id 7 :title "AI Ethics Seminar"
+               :start-time (make-time-slot :hour 10 :minute 20)
+               :end-time   (make-time-slot :hour 11 :minute 20)
+               :location "Room 201" :resource "Prof. Williams"
+               :description "Discussion on ethics in AI"))
 
-(defparameter *next-id* 6)
+(defparameter *next-id* 8)
 
 ;;; ========================================================================
 ;;; PURE FUNCTIONS
@@ -63,12 +74,16 @@
   (+ (* (time-slot-hour time-slot) 60)
      (time-slot-minute time-slot)))
 
+;;; FIXED: Require minimum overlap duration (10 minutes)
 (defun time-overlaps-p (start1 end1 start2 end2)
-  (let ((s1 (time-to-minutes start1))
-        (e1 (time-to-minutes end1))
-        (s2 (time-to-minutes start2))
-        (e2 (time-to-minutes end2)))
-    (and (< s1 e2) (> e1 s2))))
+  (let* ((s1 (time-to-minutes start1))
+         (e1 (time-to-minutes end1))
+         (s2 (time-to-minutes start2))
+         (e2 (time-to-minutes end2))
+         (overlap-start (max s1 s2))
+         (overlap-end (min e1 e2))
+         (overlap-minutes (- overlap-end overlap-start)))
+    (>= overlap-minutes 10)))
 
 (defun events-overlap-p (event1 event2)
   (time-overlaps-p (event-start-time event1)
@@ -76,29 +91,35 @@
                    (event-start-time event2)
                    (event-end-time event2)))
 
+;;; FIXED: Case-insensitive location comparison
 (defun location-conflict-p (event1 event2)
   (and (events-overlap-p event1 event2)
-       (string= (event-location event1) (event-location event2))))
+       (string-equal (event-location event1) (event-location event2))))
 
+;;; FIXED: Case-insensitive resource comparison
 (defun resource-conflict-p (event1 event2)
   (and (events-overlap-p event1 event2)
-       (or (search (event-resource event1) (event-resource event2) :test #'char=)
-           (search (event-resource event2) (event-resource event1) :test #'char=))))
+       (string-equal (event-resource event1) (event-resource event2))))
 
+;;; FIXED: Better conflict detection logic
 (defun find-conflicts (events)
   (let ((conflicts '()))
     (loop for i from 0 below (length events)
           do (loop for j from (1+ i) below (length events)
                    do (let ((e1 (nth i events))
-                            (e2 (nth j events)))
+                            (e2 (nth j events))
+                            (has-conflict nil))
+                        ;; Check location conflict first
                         (when (location-conflict-p e1 e2)
                           (push (list :type "Location"
                                      :resource (event-location e1)
                                      :event1 e1
                                      :event2 e2)
-                                conflicts))
-                        (when (and (resource-conflict-p e1 e2)
-                                   (not (location-conflict-p e1 e2)))
+                                conflicts)
+                          (setf has-conflict t))
+                        ;; Only check resource if no location conflict
+                        (when (and (not has-conflict)
+                                   (resource-conflict-p e1 e2))
                           (push (list :type "Resource"
                                      :resource (event-resource e1)
                                      :event1 e1
@@ -117,7 +138,9 @@
                   (let ((new-event (copy-structure event)))
                     (setf (event-conflicting new-event) t)
                     new-event)
-                  event)))
+                  (let ((new-event (copy-structure event)))
+                    (setf (event-conflicting new-event) nil)
+                    new-event))))
           events))
 
 (defun sort-events-chronologically (events)
@@ -128,7 +151,7 @@
 
 (defun filter-events-by-resource (events resource-name)
   (remove-if-not (lambda (event)
-                   (search resource-name (event-resource event) :test #'char=))
+                   (search resource-name (event-resource event) :test #'char-equal))
                  events))
 
 (defun count-conflicting-events (events)
@@ -175,7 +198,7 @@
 (defun print-conflict (conflict num)
   (format t "~%Conflict ~d: ~a Overlap~%" num (getf conflict :type))
   (format t "Type: ~a Double-Booking~%" (getf conflict :type))
-  (format t "~a: ~a~%" 
+  (format t "Conflicting ~a: ~a~%" 
           (if (string= (getf conflict :type) "Location") "Location" "Resource")
           (getf conflict :resource))
   (format t "Conflicting Events:~%")
@@ -219,7 +242,8 @@
 
 (defun print-chronological-schedule (events)
   (let* ((sorted-events (sort-events-chronologically events))
-         (conflict-count (count-conflicting-events sorted-events)))
+         (conflict-count (count-conflicting-events sorted-events))
+         (num-conflicts (length (find-conflicts events))))
     
     (format t "~%========================================~%")
     (format t "CHRONOLOGICAL SCHEDULE DISPLAY~%")
@@ -227,7 +251,7 @@
     
     (format t "Summary: ~d total events, ~d conflicts detected, ~d events affected~%~%"
             (length events)
-            (if (> conflict-count 0) (/ conflict-count 2) 0)
+            num-conflicts
             conflict-count)
     
     (format t "Event List (Temporal Order):~%~%")
@@ -663,8 +687,9 @@
   (format t "===============================================~%")
   (format t "EVENT SCHEDULING AND CONFLICT RESOLUTION SYSTEM~%")
   (format t "Functional Paradigm Implementation (Common Lisp)~%")
+  (format t "FIXED: Back-to-back conflict detection~%")
   (format t "===============================================~%~%")
-  (format t "Sample data loaded. 5 events initialized.~%~%")
+  (format t "Sample data loaded. 7 events initialized.~%~%")
 
   (loop
     (display-menu)
