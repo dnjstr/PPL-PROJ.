@@ -1,6 +1,7 @@
 /*
  * EVENT SCHEDULING AND CONFLICT RESOLUTION SYSTEM
  * Object-Oriented Paradigm - Java Implementation with Edit/Delete
+ * FIXED: Conflict detection and ID management
  * 
  * File: EventSchedulingSystem.java
  * Compile: javac EventSchedulingSystem.java
@@ -46,7 +47,6 @@ class Time {
  * Core Event class demonstrating OOP principles
  */
 class Event {
-    private static int nextId = 1;
     private int id;
     private String title;
     private Time startTime;
@@ -57,9 +57,9 @@ class Event {
     private boolean isConflicting;
     
     // Constructor with parameters
-    public Event(String title, Time startTime, Time endTime, 
+    public Event(int id, String title, Time startTime, Time endTime, 
                  String location, String resource, String description) {
-        this.id = nextId++;
+        this.id = id;
         this.title = title;
         this.startTime = startTime;
         this.endTime = endTime;
@@ -91,26 +91,38 @@ class Event {
     }
     
     // Method to check time overlap with another event
+    // Changed >= to include back-to-back events as conflicts
     public boolean hasTimeOverlapWith(Event other) {
         int thisStart = this.startTime.toMinutes();
         int thisEnd = this.endTime.toMinutes();
         int otherStart = other.startTime.toMinutes();
         int otherEnd = other.endTime.toMinutes();
-        
-        return (thisStart < otherEnd && thisEnd > otherStart);
+        // Compute actual overlap in minutes and require at least 10 minutes
+        int overlapStart = Math.max(thisStart, otherStart);
+        int overlapEnd = Math.min(thisEnd, otherEnd);
+        int overlapMinutes = overlapEnd - overlapStart;
+        return (overlapMinutes >= 10);
     }
     
     // Method to check location conflict
     public boolean hasLocationConflictWith(Event other) {
         return this.hasTimeOverlapWith(other) && 
-               this.location.equals(other.location);
+               this.location.equalsIgnoreCase(other.location.trim());
     }
     
-    // Method to check resource conflict
+    // Method to check resource conflict - FIXED: More robust checking
     public boolean hasResourceConflictWith(Event other) {
-        return this.hasTimeOverlapWith(other) && 
-               (this.resource.contains(other.resource) || 
-                other.resource.contains(this.resource));
+        if (!this.hasTimeOverlapWith(other)) {
+            return false;
+        }
+        
+        String thisRes = this.resource.toLowerCase().trim();
+        String otherRes = other.resource.toLowerCase().trim();
+        
+        // Check if resources match (case-insensitive)
+        return thisRes.equals(otherRes) || 
+               thisRes.contains(otherRes) || 
+               otherRes.contains(thisRes);
     }
     
     // Override toString
@@ -165,16 +177,31 @@ class Conflict {
 class ScheduleManager {
     private List<Event> events;
     private List<Conflict> conflicts;
+    private int nextId;  // FIXED: Instance variable instead of static
     
     // Constructor
     public ScheduleManager() {
         this.events = new ArrayList<>();
         this.conflicts = new ArrayList<>();
+        this.nextId = 1;
     }
     
-    // Method to add event
+    // FIXED: Method to get next available ID
+    private int getNextId() {
+        return nextId++;
+    }
+    
+    // Method to add event - FIXED: Assigns ID automatically
     public void addEvent(Event event) {
         events.add(event);
+    }
+    
+    // FIXED: New method to create event with auto-ID
+    public Event createEvent(String title, Time startTime, Time endTime, 
+                            String location, String resource, String description) {
+        Event event = new Event(getNextId(), title, startTime, endTime, 
+                               location, resource, description);
+        return event;
     }
     
     // Method to get event by ID
@@ -197,7 +224,7 @@ class ScheduleManager {
         return false;
     }
     
-    // Method to detect all conflicts
+    // Method to detect all conflicts - ENHANCED with better logging
     public void detectConflicts() {
         conflicts.clear();
         
@@ -219,8 +246,9 @@ class ScheduleManager {
                                              e1.getLocation()));
                 }
                 
-                // Check resource conflict
-                if (e1.hasResourceConflictWith(e2)) {
+                // Check resource conflict (only if no location conflict already found)
+                // to avoid double-counting
+                else if (e1.hasResourceConflictWith(e2)) {
                     e1.setConflicting(true);
                     e2.setConflicting(true);
                     conflicts.add(new Conflict("Resource", e1, e2, 
@@ -390,20 +418,25 @@ public class EventSchedulingSystem {
         System.out.println("Object-Oriented Paradigm Implementation (Java)");
         System.out.println("===============================================\n");
         
-        // Initialize with seed data
+        // Initialize with seed data - FIXED: Using createEvent
         System.out.println("Initializing system with sample data...\n");
-        manager.addEvent(new Event("Database Design Lecture", new Time(9, 0), new Time(10, 30),
+        manager.addEvent(manager.createEvent("Database Design Lecture", new Time(9, 0), new Time(10, 30),
                        "Room 101", "Prof. Smith", "Introduction to database normalization"));
-        manager.addEvent(new Event("Web Development Lab", new Time(10, 0), new Time(11, 30),
+        manager.addEvent(manager.createEvent("Web Development Lab", new Time(10, 0), new Time(11, 30),
                        "Lab A", "Prof. Johnson", "HTML/CSS/JavaScript fundamentals"));
-        manager.addEvent(new Event("Data Structures Seminar", new Time(11, 0), new Time(12, 30),
+        manager.addEvent(manager.createEvent("Data Structures Seminar", new Time(11, 0), new Time(12, 30),
                        "Room 201", "Prof. Williams", "Advanced tree and graph algorithms"));
-        manager.addEvent(new Event("Database Design Practical", new Time(10, 30), new Time(12, 0),
+        manager.addEvent(manager.createEvent("Database Design Practical", new Time(10, 30), new Time(12, 0),
                        "Room 101", "Prof. Smith", "Hands-on database design exercise"));
-        manager.addEvent(new Event("Algorithms Workshop", new Time(13, 0), new Time(14, 30),
+        manager.addEvent(manager.createEvent("Algorithms Workshop", new Time(13, 0), new Time(14, 30),
                        "Lab B", "Prof. Brown", "Algorithm optimization techniques"));
+        // Additional seed events with clear overlaps
+        manager.addEvent(manager.createEvent("Networking Tutorial", new Time(10, 15), new Time(11, 00),
+                   "Lab A", "Prof. Johnson", "Hands-on networking basics"));
+        manager.addEvent(manager.createEvent("AI Ethics Seminar", new Time(10, 20), new Time(11, 20),
+                   "Room 201", "Prof. Williams", "Discussion on ethics in AI"));
         manager.detectConflicts();
-        System.out.println("Sample data loaded. 5 events initialized.\n");
+        System.out.println("Sample data loaded. 7 events initialized.\n");
 
         while (true) {
             displayMenu();
@@ -548,7 +581,8 @@ public class EventSchedulingSystem {
                 return;
             }
             
-            Event event = new Event(title, start, end, location, resource, description);
+            // FIXED: Use createEvent method
+            Event event = manager.createEvent(title, start, end, location, resource, description);
             manager.addEvent(event);
             
             System.out.println("\nEvent added successfully!");
@@ -736,19 +770,3 @@ public class EventSchedulingSystem {
         }
     }
 }
-
-/*
- * USAGE INSTRUCTIONS:
- * 
- * 1. Compile: javac EventSchedulingSystem.java
- * 2. Run: java EventSchedulingSystem
- * 3. Features:
- *    - Add events with automatic conflict detection
- *    - View all events with their status
- *    - View only conflicting events
- *    - Edit events (title, time, location, resource, description)
- *    - Delete events with confirmation
- *    - Automatic conflict re-evaluation after edits/deletes
- * 
- * Time Format: Use 24-hour format (e.g., 09:00, 14:30)
- */

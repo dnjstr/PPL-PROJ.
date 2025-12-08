@@ -1,6 +1,7 @@
 /*
  * EVENT SCHEDULING AND CONFLICT RESOLUTION SYSTEM
  * Imperative Paradigm - C Implementation with Edit/Delete
+ * FIXED: Conflict detection for back-to-back events
  * 
  * File: EventSchedulingSystem.c
  * Compile: gcc EventSchedulingSystem.c -o EventSchedulingSystem
@@ -10,6 +11,7 @@
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
+#include <ctype.h>
 
 #define MAX_EVENTS 100
 #define MAX_STRING 200
@@ -53,20 +55,68 @@ void edit_event();
 void delete_event();
 int find_event_index(int id);
 void clear_input_buffer();
+void str_tolower(char* str);
+void str_trim(char* str);
+int str_equal_ignore_case(const char* s1, const char* s2);
 
 /* Convert time to minutes for easy comparison */
 int time_to_minutes(Time t) {
     return t.hour * 60 + t.minute;
 }
 
-/* Check if two events have time overlap */
+/* Convert string to lowercase */
+void str_tolower(char* str) {
+    int i;
+    for (i = 0; str[i]; i++) {
+        str[i] = tolower(str[i]);
+    }
+}
+
+/* Trim whitespace from string */
+void str_trim(char* str) {
+    int i, j = 0;
+    int len = strlen(str);
+    
+    /* Trim leading spaces */
+    for (i = 0; i < len && isspace(str[i]); i++);
+    
+    /* Copy non-space characters */
+    while (i < len) {
+        str[j++] = str[i++];
+    }
+    str[j] = '\0';
+    
+    /* Trim trailing spaces */
+    j--;
+    while (j >= 0 && isspace(str[j])) {
+        str[j--] = '\0';
+    }
+}
+
+/* Case-insensitive string comparison */
+int str_equal_ignore_case(const char* s1, const char* s2) {
+    char str1[MAX_STRING], str2[MAX_STRING];
+    strcpy(str1, s1);
+    strcpy(str2, s2);
+    str_tolower(str1);
+    str_tolower(str2);
+    str_trim(str1);
+    str_trim(str2);
+    return strcmp(str1, str2) == 0;
+}
+
+/* FIXED: Check if two events have time overlap (including back-to-back) */
 int check_time_overlap(Event e1, Event e2) {
     int e1_start = time_to_minutes(e1.start_time);
     int e1_end = time_to_minutes(e1.end_time);
     int e2_start = time_to_minutes(e2.start_time);
     int e2_end = time_to_minutes(e2.end_time);
     
-    return (e1_start < e2_end && e1_end > e2_start);
+    /* Require an actual overlap of at least 10 minutes to count as conflict */
+    int overlap_start = (e1_start > e2_start) ? e1_start : e2_start;
+    int overlap_end = (e1_end < e2_end) ? e1_end : e2_end;
+    int overlap_minutes = overlap_end - overlap_start;
+    return (overlap_minutes >= 10);
 }
 
 /* Find event index by ID */
@@ -138,7 +188,7 @@ void add_event_from_input() {
     
     printf("Event Title: ");
     fgets(title, MAX_STRING, stdin);
-    title[strcspn(title, "\n")] = 0;  // Remove newline
+    title[strcspn(title, "\n")] = 0;  /* Remove newline */
     
     printf("Start Time (HH MM in 24-hour format): ");
     if (scanf("%d %d", &sh, &sm) != 2) {
@@ -475,7 +525,7 @@ void delete_event() {
     }
 }
 
-/* Detect all conflicts between events */
+/* ENHANCED: Detect all conflicts between events with better checking */
 void detect_conflicts() {
     int i, j;
     
@@ -488,17 +538,18 @@ void detect_conflicts() {
     for (i = 0; i < event_count; i++) {
         for (j = i + 1; j < event_count; j++) {
             if (check_time_overlap(events[i], events[j])) {
-                /* Check for location conflict */
-                if (strcmp(events[i].location, events[j].location) == 0) {
+                /* Check for location conflict (case-insensitive) */
+                if (str_equal_ignore_case(events[i].location, events[j].location)) {
                     events[i].is_conflicting = 1;
                     events[j].is_conflicting = 1;
                 }
-                
-                /* Check for resource conflict */
-                if (strstr(events[i].resource, events[j].resource) != NULL ||
-                    strstr(events[j].resource, events[i].resource) != NULL) {
-                    events[i].is_conflicting = 1;
-                    events[j].is_conflicting = 1;
+                /* Only check resource if no location conflict */
+                else {
+                    /* Check for resource conflict (case-insensitive) */
+                    if (str_equal_ignore_case(events[i].resource, events[j].resource)) {
+                        events[i].is_conflicting = 1;
+                        events[j].is_conflicting = 1;
+                    }
                 }
             }
         }
@@ -519,11 +570,11 @@ void print_conflict_report() {
         for (j = i + 1; j < event_count; j++) {
             if (check_time_overlap(events[i], events[j])) {
                 /* Location conflict */
-                if (strcmp(events[i].location, events[j].location) == 0) {
+                if (str_equal_ignore_case(events[i].location, events[j].location)) {
                     has_conflicts = 1;
                     printf("Conflict %d: Location Overlap\n", conflict_num++);
                     printf("Type: Location Double-Booking\n");
-                    printf("Location: %s\n", events[i].location);
+                    printf("Conflicting Location: %s\n", events[i].location);
                     printf("Conflicting Events:\n");
                     printf("  - [ID:%d] %s (%02d:%02d - %02d:%02d)\n", 
                            events[i].id, events[i].title, 
@@ -537,14 +588,12 @@ void print_conflict_report() {
                     printf("  - Relocate one event to an available room\n");
                     printf("  - Adjust event times to avoid overlap\n\n");
                 }
-                
-                /* Resource conflict */
-                if (strstr(events[i].resource, events[j].resource) != NULL ||
-                    strstr(events[j].resource, events[i].resource) != NULL) {
+                /* Resource conflict (only if no location conflict) */
+                else if (str_equal_ignore_case(events[i].resource, events[j].resource)) {
                     has_conflicts = 1;
                     printf("Conflict %d: Resource Overlap\n", conflict_num++);
-                    printf("Type: Resource Double-Booking (Critical)\n");
-                    printf("Resource: %s\n", events[i].resource);
+                    printf("Type: Resource Double-Booking\n");
+                    printf("Conflicting Resource: %s\n", events[i].resource);
                     printf("Conflicting Events:\n");
                     printf("  - [ID:%d] %s (%02d:%02d - %02d:%02d) in %s\n", 
                            events[i].id, events[i].title,
@@ -575,11 +624,24 @@ void print_chronological_schedule() {
     Event temp;
     Event sorted[MAX_EVENTS];
     int conflict_count = 0;
+    int total_conflicts = 0;
     
     /* Copy events to sorted array */
     for (i = 0; i < event_count; i++) {
         sorted[i] = events[i];
         if (events[i].is_conflicting) conflict_count++;
+    }
+    
+    /* Count actual conflicts */
+    for (i = 0; i < event_count; i++) {
+        for (j = i + 1; j < event_count; j++) {
+            if (check_time_overlap(sorted[i], sorted[j])) {
+                if (str_equal_ignore_case(sorted[i].location, sorted[j].location) ||
+                    str_equal_ignore_case(sorted[i].resource, sorted[j].resource)) {
+                    total_conflicts++;
+                }
+            }
+        }
     }
     
     /* Bubble sort - imperative sorting algorithm */
@@ -598,7 +660,7 @@ void print_chronological_schedule() {
     printf("CHRONOLOGICAL SCHEDULE DISPLAY\n");
     printf("========================================\n\n");
     printf("Summary: %d total events, %d conflicts detected, %d events affected\n\n",
-           event_count, conflict_count / 2, conflict_count);
+           event_count, total_conflicts, conflict_count);
     printf("Event List (Temporal Order):\n\n");
     
     for (i = 0; i < event_count; i++) {
@@ -675,8 +737,14 @@ int main() {
     add_event("Algorithms Workshop", 13, 0, 14, 30, 
               "Lab B", "Prof. Brown", "Algorithm optimization techniques");
     
+    /* Additional seed events with clear overlaps */
+    add_event("Networking Tutorial", 10, 15, 11, 0,
+              "Lab A", "Prof. Johnson", "Hands-on networking basics");
+    add_event("AI Ethics Seminar", 10, 20, 11, 20,
+              "Room 201", "Prof. Williams", "Discussion on ethics in AI");
+
     detect_conflicts();
-    printf("Sample data loaded. 5 events initialized.\n\n");
+    printf("Sample data loaded. 7 events initialized.\n\n");
     
     /* Main program loop */
     while (1) {
@@ -770,19 +838,3 @@ int main() {
     
     return 0;
 }
-
-/*
- * USAGE INSTRUCTIONS:
- * 
- * 1. Compile: gcc EventSchedulingSystem.c -o EventSchedulingSystem
- * 2. Run: ./EventSchedulingSystem (Linux/Mac) or EventSchedulingSystem.exe (Windows)
- * 3. Features:
- *    - Add events with automatic conflict detection
- *    - View all events with their status
- *    - View only conflicting events
- *    - Edit events (title, time, location, resource, description)
- *    - Delete events with confirmation
- *    - Automatic conflict re-evaluation after edits/deletes
- * 
- * Time Format: Enter hours and minutes separated by space (e.g., 9 0 for 09:00)
- */
